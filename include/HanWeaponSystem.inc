@@ -43,22 +43,6 @@ native bool Han_IsClientZooming(int client);
 native bool Han_IsWeaponZoomable(int client);
 
 /**
- * 设置玩家的机瞄触发习惯（覆盖武器配置 zoommode）。
- *
- * @param client 玩家索引
- * @param mode   -1 = 跟随武器配置, 0 = 点按, 1 = 按住
- */
-native void Han_SetClientZoomMode(int client, int mode);
-
-/**
- * 获取玩家当前生效的机瞄触发模式。
- *
- * @param client 玩家索引
- * @return -1 = 跟随武器配置, 0 = 点按, 1 = 按住
- */
-native int Han_GetClientZoomMode(int client);
-
-/**
  * 玩家机瞄状态变化时触发。
  *
  * @param client  玩家索引

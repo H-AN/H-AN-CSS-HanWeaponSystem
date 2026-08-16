@@ -52,6 +52,8 @@ public void OnEntitySpawned(int entity)
         if (GetEntProp(entity, Prop_Send, "m_nViewModelIndex") == 0)
         {
             ClientVM[Owner][0] = entity;
+            // 新VM实体出现, 传输屏蔽钩子需重新挂(保险)
+            g_bVM0BlockHooked[Owner] = false;
         }
         else if (GetEntProp(entity, Prop_Send, "m_nViewModelIndex") == 1)
         {
@@ -114,6 +116,7 @@ public void OnPostThinkPost(int client)
 
         IsCustom[client] = false;
         IsCustom2[client] = false;
+        g_bVM0BlockHooked[client] = false;
         OldWeapon[client] = WeaponIndex;
         OldSequence[client] = Sequence;
         OldCycle[client] = Cycle;
@@ -173,6 +176,7 @@ public void OnPostThinkPost(int client)
             }
 
             SDKHook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
+            g_bVM0BlockHooked[client] = true;
         }
         else
         {
@@ -181,6 +185,7 @@ public void OnPostThinkPost(int client)
             SetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects", EntEffects);
 
             SDKUnhook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
+            g_bVM0BlockHooked[client] = false;
 
             IsCustom[client] = false;
             IsCustom2[client] = false;
@@ -190,6 +195,13 @@ public void OnPostThinkPost(int client)
     {
         if (IsCustom[client])
         {
+            // 保险: 新武器每tick确保 0号VM 传输屏蔽钩子已挂(防切枪/重建后漏勾穿帮)
+            if (!g_bVM0BlockHooked[client] && ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]))
+            {
+                SDKHook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
+                g_bVM0BlockHooked[client] = true;
+            }
+
             // 复制动画数据到 1号VM
             SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
 
@@ -218,6 +230,13 @@ public void OnPostThinkPost(int client)
         }
         else if (IsCustom2[client])
         {
+            // 保险: 新武器每tick确保 0号VM 传输屏蔽钩子已挂(防切枪/重建后漏勾穿帮)
+            if (!g_bVM0BlockHooked[client] && ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]))
+            {
+                SDKHook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
+                g_bVM0BlockHooked[client] = true;
+            }
+
             SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", GetEntPropFloat(ClientVM[client][0], Prop_Send, "m_flPlaybackRate"));
 
             SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", PlaybackRate);
@@ -260,6 +279,9 @@ public void OnPostThinkPost(int client)
 
     // 机瞄后处理(屏震降低/衔接提前结束)
     Zoom_OnPostThinkPost(client);
+
+    // 检视后处理(动画强制/结束条件/手电屏蔽)
+    Inspect_OnPostThinkPost(client);
 }
 
 // 隐藏死亡v模型
@@ -272,8 +294,12 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
     if (g_bZooming[client] || g_iZoomInSwitch[client] != 0)
         Zoom_ForceExit(client);
 
+    // 强制退出检视
+    Inspect_End(client);
+
     IsCustom[client] = false;
     IsCustom2[client] = false;
+    g_bVM0BlockHooked[client] = false;
 
     int EntEffects = GetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects");
     EntEffects |= EF_NODRAW;

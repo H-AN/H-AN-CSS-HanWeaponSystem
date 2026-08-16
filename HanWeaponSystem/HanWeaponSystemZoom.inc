@@ -16,8 +16,6 @@
 
 void Zoom_OnPluginStart()
 {
-    RegConsoleCmd("sm_zoom", Cmd_ZoomMenu, "机瞄触发习惯菜单");
-    g_hZoomModeCookie = RegClientCookie("hws_zoommode", "机瞄触发习惯", CookieAccess_Protected);
     HookUserMessage(GetUserMessageId("ReloadEffect"), Zoom_OnReloadEffect);
 }
 
@@ -54,30 +52,6 @@ bool Zoom_IsNoAmmoWeapon(int weapon)
         return false;
 
     return GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType") == -1;
-}
-
-int Zoom_GetConfigMode(int weapon)
-{
-    return Zoom_GetInt(weapon, "zoommode", 0);
-}
-
-int Zoom_GetEffectiveMode(int client, int weapon)
-{
-    if (g_iZoomModeOverride[client] >= 0)
-        return g_iZoomModeOverride[client];
-
-    if (g_hZoomModeCookie != INVALID_HANDLE)
-    {
-        char cookieVal[8];
-        if (GetClientCookie(client, g_hZoomModeCookie, cookieVal, sizeof(cookieVal)) && strlen(cookieVal) > 0)
-        {
-            int mode = StringToInt(cookieVal);
-            if (mode == 0 || mode == 1)
-                return mode;
-        }
-    }
-
-    return Zoom_GetConfigMode(weapon);
 }
 
 int Zoom_GetAnimMove(int weapon)
@@ -120,32 +94,20 @@ void Zoom_OnPlayerRunCmd(int client, int buttons, bool bReloading)
     if (!Zoom_IsWeaponZoomable(weapon))
         return;
 
+    // 检视中禁止开镜(互斥)
+    if (g_bInspecting[client])
+        return;
+
     static bool s_bPrevAttack2[MAXPLAYERS + 1];
     bool risingEdge = pressing && !s_bPrevAttack2[client];
     s_bPrevAttack2[client] = pressing;
 
-    int mode = Zoom_GetEffectiveMode(client, weapon);
+    // 点按开镜，再按解除；冷却防抖
     bool wantZoom = g_bZooming[client];
-
-    if (mode == 1) // 按住: 按下立即开镜, 松开需短暂确认才关镜(防按键抖动)
+    if (risingEdge && GetGameTime() >= g_fZoomBlock[client])
     {
-        if (pressing)
-        {
-            wantZoom = true;
-            g_fZoomBlock[client] = GetGameTime() + 0.15;
-        }
-        else if (GetGameTime() >= g_fZoomBlock[client])
-        {
-            wantZoom = false;
-        }
-    }
-    else // 点按: 上升沿切换 + 冷却防抖
-    {
-        if (risingEdge && GetGameTime() >= g_fZoomBlock[client])
-        {
-            wantZoom = !g_bZooming[client];
-            g_fZoomBlock[client] = GetGameTime() + 0.5;
-        }
+        wantZoom = !g_bZooming[client];
+        g_fZoomBlock[client] = GetGameTime() + 0.5;
     }
 
     if (wantZoom != g_bZooming[client])
@@ -456,53 +418,6 @@ public Action Zoom_OnReloadEffect(UserMsg msg_id, Handle bf, const int[] players
         }
     }
     return Plugin_Continue;
-}
-
-// ============================================================================
-// >> 玩家机瞄习惯菜单
-// ============================================================================
-public Action Cmd_ZoomMenu(int client, int args)
-{
-    if (client <= 0 || client > MaxClients || !IsClientInGame(client))
-        return Plugin_Handled;
-
-    Menu menu = new Menu(MenuHandler_Zoom);
-    menu.SetTitle("[华仔武器] 机瞄触发习惯");
-    menu.AddItem("0", "点按开镜(再按还原)");
-    menu.AddItem("1", "长按开镜(松开还原)");
-    menu.AddItem("-1", "跟随武器配置");
-    menu.ExitButton = true;
-    menu.Display(client, 15);
-
-    return Plugin_Handled;
-}
-
-public int MenuHandler_Zoom(Menu menu, MenuAction action, int client, int param2)
-{
-    if (action == MenuAction_Select)
-    {
-        char info[8];
-        menu.GetItem(param2, info, sizeof(info));
-        int mode = StringToInt(info);
-
-        g_iZoomModeOverride[client] = mode;
-
-        if (g_hZoomModeCookie != INVALID_HANDLE)
-        {
-            if (mode >= 0)
-                SetClientCookie(client, g_hZoomModeCookie, info);
-            else
-                SetClientCookie(client, g_hZoomModeCookie, "");
-        }
-
-        PrintToChat(client, "[华仔武器] 机瞄习惯已设置为 %s", (mode == 1) ? "长按开镜" : (mode == 0) ? "点按开镜" : "跟随武器配置");
-        Cmd_ZoomMenu(client, 0);
-    }
-    else if (action == MenuAction_End)
-    {
-        delete menu;
-    }
-    return 0;
 }
 
 // ============================================================================

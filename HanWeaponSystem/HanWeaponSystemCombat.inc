@@ -118,6 +118,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
     // 机瞄触发
     Zoom_OnPlayerRunCmd(client, buttons, bIsReloading);
 
+    // 检视触发(F键/impulse 100)
+    Inspect_OnPlayerRunCmd(client, impulse, bIsReloading);
+
     return Plugin_Continue;
 }
 
