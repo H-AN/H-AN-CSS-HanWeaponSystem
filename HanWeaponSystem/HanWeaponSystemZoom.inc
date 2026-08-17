@@ -183,9 +183,15 @@ void Zoom_OnPlayerRunCmd(int client, int buttons, bool bReloading)
     bool canZoom = !isNativeScope && Zoom_IsWeaponZoomable(weapon);
     bool canSideAim = Zoom_IsWeaponSideAimable(weapon);
 
-    // 检视/奔跑中禁止瞄准(互斥)
+    // 检视中按下瞄准键(机瞄=右键/侧瞄=中键) → 先打断检视, 下一帧瞄准逻辑接管(检视优先级最低)
     if (g_bInspecting[client] || g_bRunning[client])
+    {
+        if (g_bInspecting[client] && ((canZoom && (buttons & IN_ATTACK2)) || (canSideAim && (buttons & IN_ATTACK3))))
+        {
+            Inspect_End(client);
+        }
         return;
+    }
 
     static bool s_bPrevAttack2[MAXPLAYERS + 1];
     static bool s_bPrevAttack3[MAXPLAYERS + 1];

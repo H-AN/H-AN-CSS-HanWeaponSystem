@@ -118,14 +118,14 @@ public Action Run_OnPlayerRunCmd(int client, int &buttons, bool bReloading)
         else if (stage == RUN_STAGE_IN || stage == RUN_STAGE_RUN)
         {
             // 松开前进/按其他方向或跳跃下蹲/开火即结束奔跑
-            bStop = ((buttons & IN_ATTACK) || (buttons & IN_ATTACK2) || (buttons & IN_ALT1) || (buttons & IN_ALT2) ||
+            bStop = ((buttons & IN_ATTACK) || (buttons & IN_ATTACK2) || (buttons & IN_ATTACK3) || (buttons & IN_ALT1) || (buttons & IN_ALT2) ||
                      !(buttons & IN_FORWARD) ||
                      (buttons & IN_BACK) || (buttons & IN_MOVELEFT) || (buttons & IN_MOVERIGHT) ||
                      (buttons & IN_JUMP) || (buttons & IN_DUCK));
         }
         else // RUN_STAGE_OUT: 过渡中按攻击/侧瞄立即截断
         {
-            bStop = ((buttons & IN_ATTACK) || (buttons & IN_ATTACK2) || (buttons & IN_ALT1) || (buttons & IN_ALT2));
+            bStop = ((buttons & IN_ATTACK) || (buttons & IN_ATTACK2) || (buttons & IN_ATTACK3) || (buttons & IN_ALT1) || (buttons & IN_ALT2));
         }
 
         if (bStop)
@@ -185,8 +185,11 @@ void Run_TryStart(int client, int buttons, bool bReloading)
         (buttons & IN_JUMP) || (buttons & IN_DUCK) || (buttons & IN_ATTACK))
         return;
 
-    // 互斥门槛: 机瞄/侧瞄/检视期间不可奔跑
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bInspecting[client])
+    // 互斥门槛: 检视期间优先奔跑(先结束检视再继续判定); 机瞄/侧瞄期间不可奔跑
+    if (g_bInspecting[client])
+        Inspect_End(client);
+
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0)
         return;
 
     // 换弹/换枪(deploy)期间不允许奔跑

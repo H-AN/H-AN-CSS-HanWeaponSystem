@@ -63,7 +63,7 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// vmodel/wmodel: 模型路径");
     WriteFileLine(file, "// firesound/switchsound: 音效路径");
     WriteFileLine(file, "// customsoundct/customsoundt: 替换刀音效路径文件夹 不同队伍");
-    WriteFileLine(file, "// autofire:      自动连发标记(1/0)，供其他插件查询");
+    WriteFileLine(file, "// autofire:      速射连发(1/0) 按住右键强制转左键速射并清除后坐力; 配有机瞄或原生开镜的武器自动失效(机瞄优先)");
     WriteFileLine(file, "// Sqtype:        1=手动自定义动画序列(IsCustom2)");
     WriteFileLine(file, "// skincode:      皮肤索引");
     WriteFileLine(file, "// ammo:          给予弹夹子弹量(默认20000)");
@@ -221,6 +221,76 @@ bool GetCustomSoundPrefixt(const char[] classname, char[] prefix, int maxlen)
 }
 
 // ============================================================================
+// >> 判断是否为刀(实体 classname 为 weapon_knife, 或反查主配置 classname 键为 weapon_knife)
+// ============================================================================
+bool IsKnifeWeapon(int weapon)
+{
+    if (weapon <= 0 || !IsValidEntity(weapon))
+        return false;
+
+    char cls[64];
+    GetEntityClassname(weapon, cls, sizeof(cls));
+
+    if (StrEqual(cls, "weapon_knife", false))
+        return true;
+
+    if (g_hWeaponConfig == INVALID_HANDLE)
+        return false;
+
+    if (StrContains(cls, "weapon_") == 0)
+        strcopy(cls, sizeof(cls), cls[7]);
+
+    KvRewind(g_hWeaponConfig);
+    if (!KvGotoFirstSubKey(g_hWeaponConfig))
+        return false;
+
+    do
+    {
+        char cfgUse[64];
+        KvGetString(g_hWeaponConfig, "useclassname", cfgUse, sizeof(cfgUse), "");
+
+        if (StrContains(cfgUse, "weapon_") == 0)
+            strcopy(cfgUse, sizeof(cfgUse), cfgUse[7]);
+
+        if (StrEqual(cls, cfgUse, false))
+        {
+            char origClass[64];
+            KvGetString(g_hWeaponConfig, "classname", origClass, sizeof(origClass), "");
+
+            if (StrContains(origClass, "weapon_") == 0)
+                strcopy(origClass, sizeof(origClass), origClass[7]);
+
+            return (StrEqual(origClass, "knife", false));
+        }
+
+    } while (KvGotoNextKey(g_hWeaponConfig));
+
+    return false;
+}
+
+// ============================================================================
+// >> 判断武器是否配置了右键连发(firespeed 右值非空)
+// ============================================================================
+bool HasRightFireSpeed(int weapon)
+{
+    char fireSpeed[64];
+    if (!GetWeaponConfigValue(weapon, "firespeed", fireSpeed, sizeof(fireSpeed)))
+        return false;
+
+    int pos = FindCharInString(fireSpeed, ':');
+    if (pos == -1)
+        return false;
+
+    for (int i = pos + 1; i < sizeof(fireSpeed); i++)
+    {
+        if (fireSpeed[i] != '\0' && fireSpeed[i] != ' ')
+            return true;
+    }
+
+    return false;
+}
+
+// ============================================================================
 // >> 预缓存武器资源
 // ============================================================================
 void PrecacheWeaponResources(Handle kvRoot)
@@ -364,30 +434,9 @@ void PrecacheWeaponResources(Handle kvRoot)
             }
         }
 
-        LoadWeaponConfig(kvRoot, weaponName);
-
     } while (KvGotoNextKey(kvRoot));
 
     KvRewind(kvRoot);
-}
-
-// ============================================================================
-// >> 刀音效 trie 映射
-// ============================================================================
-void LoadWeaponConfig(Handle kv, const char[] classname)
-{
-    char prefixct[64];
-    KvGetString(kv, "customsoundct", prefixct, sizeof(prefixct), "");
-    if (strlen(prefixct) > 0)
-    {
-        SetTrieValue(g_hWeaponTrie, classname, prefixct);
-    }
-    char prefixt[64];
-    KvGetString(kv, "customsoundt", prefixt, sizeof(prefixt), "");
-    if (strlen(prefixt) > 0)
-    {
-        SetTrieValue(g_hWeaponTrie, classname, prefixt);
-    }
 }
 
 // ============================================================================

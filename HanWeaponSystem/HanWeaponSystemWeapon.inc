@@ -114,8 +114,13 @@ public Action SetTransmit_CallBack(int entity, int viewer)
     if (viewer > 0 && viewer <= MaxClients)
     {
         int weapons = GetEntPropEnt(viewer, Prop_Send, "m_hActiveWeapon");
-        if (owner == viewer && weapons == GetPlayerWeaponSlot(viewer, 2))
-            return Plugin_Handled;
+        if (owner == viewer && weapons > 0 && weapons == GetPlayerWeaponSlot(viewer, 2))
+        {
+            char classname[64];
+            GetEdictClassname(weapons, classname, sizeof(classname));
+            if (!StrEqual(classname, "weapon_knife", false))
+                return Plugin_Handled;
+        }
     }
     if (owner > 0 && owner <= MaxClients && (!IsClientInGame(owner)))
         SDKUnhook(entity, SDKHook_SetTransmit, SetTransmit_CallBack);

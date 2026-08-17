@@ -1,4 +1,4 @@
-#define VERSION "6.3"
+#define VERSION "6.4"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 

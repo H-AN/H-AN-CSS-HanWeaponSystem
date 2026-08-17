@@ -301,6 +301,14 @@ void Inspect_OnPostThinkPost(int client)
         return;
     }
 
+    // 右键取消检视: 刀 / 配置了 firespeed 右键连发的枪械 / autofire 速射武器
+    // (带机瞄/侧瞄的武器已由 Zoom 模块在按下瞄准键时打断检视, 此处不重复处理)
+    if ((GetClientButtons(client) & IN_ATTACK2) && (IsKnifeWeapon(weapon) || HasRightFireSpeed(weapon) || g_bWeaponAutoFire[client]))
+    {
+        Inspect_End(client);
+        return;
+    }
+
     // 换弹取消检视
     if (Weapon_IsReloading(weapon) || (HasEntProp(weapon, Prop_Send, "m_reloadState") && GetEntProp(weapon, Prop_Send, "m_reloadState") > 0))
     {

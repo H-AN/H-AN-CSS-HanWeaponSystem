@@ -133,15 +133,15 @@ public void OnPostThinkPost(int client)
 
         GetEdictClassname(WeaponIndex, ClassName, sizeof(ClassName));
 
-        // 自动连发标记
+        // 自动连发标记(有效值: 配置开启且非原生开镜且无插件机瞄; 右键被机瞄/原生开镜占用则自动失效)
         char AutoFire[32];
-        if (GetWeaponConfigValue(WeaponIndex, "autofire", AutoFire, sizeof(AutoFire)))
+        g_bWeaponAutoFire[client] = false;
+        if (GetWeaponConfigValue(WeaponIndex, "autofire", AutoFire, sizeof(AutoFire)) && StringToInt(AutoFire) > 0)
         {
-            g_bWeaponAutoFire[client] = (StringToInt(AutoFire) > 0);
-        }
-        else
-        {
-            g_bWeaponAutoFire[client] = false;
+            if (!Zoom_IsNativeScopeWeapon(WeaponIndex) && !Zoom_IsWeaponZoomable(WeaponIndex))
+            {
+                g_bWeaponAutoFire[client] = true;
+            }
         }
 
         if (GetWeaponConfigValue(WeaponIndex, "vmodel", vmodelpath, sizeof(vmodelpath)) && strlen(vmodelpath) > 0)

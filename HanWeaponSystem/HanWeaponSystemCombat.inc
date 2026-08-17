@@ -97,6 +97,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
     g_bPressingAttack2[client] = (buttons & IN_ATTACK2) != 0;
 
+    // 自动连发: 按住右键 → 屏蔽右键强制转左键速射(速射过快后坐力压不住, 每tick清除)
+    bool bAutoFired = false;
+    if (g_bWeaponAutoFire[client] && (buttons & IN_ATTACK2))
+    {
+        float zeroPunch[3] = {0.0, 0.0, 0.0};
+        SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", zeroPunch);
+        SetEntProp(client, Prop_Send, "m_iShotsFired", 0);
+        buttons &= ~IN_ATTACK2;
+        buttons |= IN_ATTACK;
+        bAutoFired = true;
+    }
+
     // 换弹速度检测
     static bool s_ClientIsReloading[MAXPLAYERS + 1];
     char sWeapon[64];
@@ -123,7 +135,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
     // 奔跑触发(前进按住时点按Shift); 奔跑中剔除IN_SPEED/禁止换弹时返回 Plugin_Changed 透传按键修改
     Action runRet = Run_OnPlayerRunCmd(client, buttons, bIsReloading);
-    if (runRet == Plugin_Changed)
+    if (runRet == Plugin_Changed || bAutoFired)
     {
         return Plugin_Changed;
     }
