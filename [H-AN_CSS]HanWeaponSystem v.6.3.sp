@@ -11,6 +11,8 @@
 
 #include "HanWeaponSystem/HanWeaponSystemGlobals"
 #include "HanWeaponSystem/HanWeaponSystemConfig"
+#include "HanWeaponSystem/HanWeaponSystemEmptyReloadConfig"
+#include "HanWeaponSystem/HanWeaponSystemEmptyReload"
 #include "HanWeaponSystem/HanWeaponSystemSounds"
 #include "HanWeaponSystem/HanWeaponSystemCamera"
 #include "HanWeaponSystem/HanWeaponSystemZoomConfig"
@@ -44,6 +46,8 @@ public void OnPluginStart()
     offsCollision = FindSendPropInfo("CBaseEntity", "m_CollisionGroup");
 
     Config_OnPluginStart();
+    EmptyReloadConfig_OnPluginStart();
+    EmptyReload_OnPluginStart();
     ZoomConfig_OnPluginStart();
     Zoom_OnPluginStart();
     InspectConfig_OnPluginStart();
@@ -65,6 +69,7 @@ public void OnPluginStart()
 public void OnMapStart()
 {
     Config_OnMapStart();
+    EmptyReloadConfig_OnMapStart();
     ZoomConfig_OnMapStart();
     Zoom_OnMapStart();
     InspectConfig_OnMapStart();
@@ -109,6 +114,7 @@ public void OnClientDisconnect(int client)
 
     Inspect_Reset(client);
     Run_Reset(client);
+    EmptyReload_Reset(client);
 
     ClientVM[client][0] = -1;
     ClientVM[client][1] = -1;

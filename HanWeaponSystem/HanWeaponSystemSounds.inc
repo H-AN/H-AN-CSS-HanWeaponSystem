@@ -108,6 +108,9 @@ public void Hook_WeaponReloadPost(int weapon, bool bSuccessful)
     if (owner <= 0 || !IsClientInGame(owner))
         return;
 
+    // 空仓/战术换弹动画接管(此处 m_iClip1 仍是换弹前值, 正好判定空仓/战术)
+    EmptyReload_OnWeaponReloadPost(weapon);
+
     int ammo = GetEntProp(weapon, Prop_Data, "m_iClip1");
 
     int WeaponAmmo = GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType");

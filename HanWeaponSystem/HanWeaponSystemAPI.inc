@@ -16,6 +16,8 @@ void RegisterWeaponAPI()
     g_ForwardClientZoom = new GlobalForward("Han_OnClientZoom", ET_Ignore, Param_Cell, Param_Cell);
     g_ForwardClientInspect = new GlobalForward("Han_OnClientInspect", ET_Ignore, Param_Cell, Param_Cell);
     g_ForwardClientRun = new GlobalForward("Han_OnClientRun", ET_Ignore, Param_Cell, Param_Cell);
+    g_ForwardClientEmptyReload = new GlobalForward("Han_OnClientEmptyReload", ET_Ignore, Param_Cell);
+    g_ForwardClientTacticalReload = new GlobalForward("Han_OnClientTacticalReload", ET_Ignore, Param_Cell);
 
     RegPluginLibrary("HanWeaponSystem");
 }

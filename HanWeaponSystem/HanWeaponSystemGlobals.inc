@@ -1,4 +1,4 @@
-#define VERSION "6.2"
+#define VERSION "6.3"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -68,3 +68,20 @@ bool g_bSpeedDown[MAXPLAYERS + 1];       // IN_SPEED 当前是否按下(边沿�
 float g_fRunShakeNext[MAXPLAYERS + 1];   // 下次抖动触发时间(每 RUN_SHAKE_TIME 秒一次)
 
 Handle g_ForwardClientRun = INVALID_HANDLE;
+
+// ============================================================================
+// >> 空仓/战术换弹全局
+// ============================================================================
+Handle g_hEmptyReloadConfig = INVALID_HANDLE;
+
+bool g_bEmptyReloading[MAXPLAYERS + 1];     // 空仓/战术换弹动画接管中(由换弹钩子置位)
+int g_iEmptyReloadWeapon[MAXPLAYERS + 1];   // 换弹接管开始时武器实体
+int g_iEmptyReloadSeq[MAXPLAYERS + 1];      // 正在强制的换弹动画序列号
+
+bool g_bEmptyReloadTiming[MAXPLAYERS + 1];     // 换弹时长同步接管中(跳过全局reloadspeed)
+int g_iEmptyReloadTimeFrames[MAXPLAYERS + 1];  // 配置帧数
+int g_iEmptyReloadFps[MAXPLAYERS + 1];         // 配置fps(默认30, 按需改24)
+float g_fEmptyReloadStart[MAXPLAYERS + 1];     // 接管起始时间(用于计算结束时刻)
+
+Handle g_ForwardClientEmptyReload = INVALID_HANDLE;
+Handle g_ForwardClientTacticalReload = INVALID_HANDLE;

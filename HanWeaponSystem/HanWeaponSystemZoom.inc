@@ -12,6 +12,10 @@
 // 感谢原作者的付出！原插件仅供学习参考，本插件已在此基础上大幅重构改写。
 // Special thanks to the original authors for their work! The original plugin is
 // used for reference only; this plugin has been heavily reworked on top of it.
+//
+// 按键说明：awp/scout 武器实体右键为引擎原生开镜，机瞄/侧瞄改由中键(IN_ATTACK3)触发。
+// Key note: for weapon_awp/weapon_scout entities, right-click is the engine's native
+// scope; custom zoom (iron sight / side aim) is triggered by the middle mouse button.
 // ============================================================================
 
 void Zoom_OnPluginStart()
@@ -65,12 +69,55 @@ float Zoom_GetAnimTime(int weapon)
 }
 
 // ============================================================================
+// >> 判断武器是否基于引擎原生右键开镜的脚本(awp/scout)
+//    实体 classname 已被改写为 useclassname(如 weapon_awm)，须按 useclassname
+//    反查主配置的 classname 键，原始脚本为 weapon_awp/weapon_scout 才算。
+//    这两把武器右键自带瞄准镜，为避免与侧瞄/机瞄按键冲突，改由中键(IN_ATTACK3)触发机瞄
+// ============================================================================
+bool Zoom_IsNativeScopeWeapon(int weapon)
+{
+    if (weapon <= 0 || !IsValidEntity(weapon) || g_hWeaponConfig == INVALID_HANDLE)
+        return false;
+
+    char useClass[64];
+    GetEntityClassname(weapon, useClass, sizeof(useClass));
+
+    if (StrContains(useClass, "weapon_") == 0)
+        strcopy(useClass, sizeof(useClass), useClass[7]);
+
+    KvRewind(g_hWeaponConfig);
+    if (!KvGotoFirstSubKey(g_hWeaponConfig))
+        return false;
+
+    do
+    {
+        char cfgUse[64];
+        KvGetString(g_hWeaponConfig, "useclassname", cfgUse, sizeof(cfgUse), "");
+
+        if (StrContains(cfgUse, "weapon_") == 0)
+            strcopy(cfgUse, sizeof(cfgUse), cfgUse[7]);
+
+        if (StrEqual(useClass, cfgUse, false))
+        {
+            char origClass[64];
+            KvGetString(g_hWeaponConfig, "classname", origClass, sizeof(origClass), "");
+
+            if (StrContains(origClass, "weapon_") == 0)
+                strcopy(origClass, sizeof(origClass), origClass[7]);
+
+            return (StrEqual(origClass, "awp", false) || StrEqual(origClass, "scout", false));
+        }
+
+    } while (KvGotoNextKey(g_hWeaponConfig));
+
+    return false;
+}
+
+// ============================================================================
 // >> 触发检测(由 Combat 的 OnPlayerRunCmd 调用)
 // ============================================================================
 void Zoom_OnPlayerRunCmd(int client, int buttons, bool bReloading)
 {
-    bool pressing = (buttons & IN_ATTACK2) != 0;
-
     if (!IsPlayerAlive(client))
     {
         if (g_bZooming[client] || g_iZoomInSwitch[client] != 0)
@@ -81,6 +128,10 @@ void Zoom_OnPlayerRunCmd(int client, int buttons, bool bReloading)
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
     if (weapon <= 0)
         return;
+
+    // awp/scout 引擎自带右键开镜，机瞄改用中键(IN_ATTACK3)触发，避免与原生开镜按键冲突
+    int zoomButton = Zoom_IsNativeScopeWeapon(weapon) ? IN_ATTACK3 : IN_ATTACK2;
+    bool pressing = (buttons & zoomButton) != 0;
 
     // 换弹/换枪(deploy)期间不允许机瞄，正在机瞄则强制退出
     // 无弹药特殊武器(primary_ammo None)不受此限制
@@ -99,8 +150,10 @@ void Zoom_OnPlayerRunCmd(int client, int buttons, bool bReloading)
         return;
 
     static bool s_bPrevAttack2[MAXPLAYERS + 1];
-    bool risingEdge = pressing && !s_bPrevAttack2[client];
-    s_bPrevAttack2[client] = pressing;
+    static bool s_bPrevAttack3[MAXPLAYERS + 1];
+    bool risingEdge = pressing && !(zoomButton == IN_ATTACK3 ? s_bPrevAttack3[client] : s_bPrevAttack2[client]);
+    s_bPrevAttack2[client] = (buttons & IN_ATTACK2) != 0;
+    s_bPrevAttack3[client] = (buttons & IN_ATTACK3) != 0;
 
     // 点按开镜，再按解除；冷却防抖
     bool wantZoom = g_bZooming[client];

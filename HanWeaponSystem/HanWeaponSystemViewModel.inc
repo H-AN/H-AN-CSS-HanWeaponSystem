@@ -285,6 +285,9 @@ public void OnPostThinkPost(int client)
 
     // 奔跑后处理(状态推进/动画强制/抖动/结束条件)
     Run_OnPostThinkPost(client);
+
+    // 空仓/战术换弹后处理(强制换弹序列/结束条件)
+    EmptyReload_OnPostThinkPost(client);
 }
 
 // 隐藏死亡v模型
@@ -302,6 +305,9 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
 
     // 强制退出奔跑(恢复速度与动画)
     Run_End(client);
+
+    // 强制结束空仓/战术换弹接管(恢复VM[1])
+    EmptyReload_End(client);
 
     IsCustom[client] = false;
     IsCustom2[client] = false;

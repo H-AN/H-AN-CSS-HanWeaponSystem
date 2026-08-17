@@ -302,6 +302,10 @@ void IncreaseReloadSpeed(int client)
     if (IsFakeClient(client))
         return;
 
+    // 空仓/战术换弹时长同步接管中: 由 EmptyReload 模块按实测时长/兜底帧数控制换弹节奏
+    if (g_bEmptyReloadTiming[client])
+        return;
+
     char sWeapon[64];
     int iWeapon = Client_GetActiveWeaponName(client, sWeapon, sizeof(sWeapon));
 

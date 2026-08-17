@@ -89,3 +89,17 @@ native bool Han_IsClientRunning(int client);
  * @param running true = 开始奔跑, false = 结束奔跑(含过渡播完)
  */
 forward void Han_OnClientRun(int client, bool running);
+
+/**
+ * 玩家开始空仓换弹时触发（弹匣打空后换弹，一次性广播，无结束事件）。
+ *
+ * @param client 玩家索引
+ */
+forward void Han_OnClientEmptyReload(int client);
+
+/**
+ * 玩家开始战术换弹时触发（弹匣还有子弹时换弹，一次性广播，无结束事件）。
+ *
+ * @param client 玩家索引
+ */
+forward void Han_OnClientTacticalReload(int client);
