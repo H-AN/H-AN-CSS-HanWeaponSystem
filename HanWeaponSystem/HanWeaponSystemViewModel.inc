@@ -282,6 +282,9 @@ public void OnPostThinkPost(int client)
 
     // 检视后处理(动画强制/结束条件/手电屏蔽)
     Inspect_OnPostThinkPost(client);
+
+    // 奔跑后处理(状态推进/动画强制/抖动/结束条件)
+    Run_OnPostThinkPost(client);
 }
 
 // 隐藏死亡v模型
@@ -296,6 +299,9 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
 
     // 强制退出检视
     Inspect_End(client);
+
+    // 强制退出奔跑(恢复速度与动画)
+    Run_End(client);
 
     IsCustom[client] = false;
     IsCustom2[client] = false;

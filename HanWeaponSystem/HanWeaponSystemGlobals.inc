@@ -1,4 +1,4 @@
-#define VERSION "6.1"
+#define VERSION "6.2"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -48,3 +48,23 @@ int g_iInspectWeapon[MAXPLAYERS + 1];       // 检视开始时武器实体
 float g_fInspectEnd[MAXPLAYERS + 1];        // 检视结束时间
 float g_fInspectBlock[MAXPLAYERS + 1];      // 检视触发防抖时间
 int g_iInspectRestart[MAXPLAYERS + 1];      // 重复检视重启标记(先切其他序列再切回强制重播)
+char g_sInspectSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH]; // 当前检视音效路径(用于停止/重播)
+
+Handle g_ForwardClientInspect = INVALID_HANDLE;
+
+// ============================================================================
+// >> 奔跑全局
+// ============================================================================
+Handle g_hRunConfig = INVALID_HANDLE;
+
+bool g_bRunning[MAXPLAYERS + 1];         // 奔跑流程中(stage != 0), 供互斥/API使用
+int g_iRunStage[MAXPLAYERS + 1];         // 0=无 1=runin过渡 2=奔跑循环 3=runout过渡
+int g_iRunWeapon[MAXPLAYERS + 1];        // 奔跑开始时武器实体
+float g_fRunSwitch[MAXPLAYERS + 1];      // 循环切换/过渡结束时间戳
+bool g_bRunFrame[MAXPLAYERS + 1];        // 循环动画两帧切换标记
+bool g_bRunSpeedApplied[MAXPLAYERS + 1]; // 奔跑速度是否已写入(防每tick重复写)
+float g_fSpeedPressTime[MAXPLAYERS + 1]; // IN_SPEED 按下时刻(点按判定用)
+bool g_bSpeedDown[MAXPLAYERS + 1];       // IN_SPEED 当前是否按下(边沿检测用)
+float g_fRunShakeNext[MAXPLAYERS + 1];   // 下次抖动触发时间(每 RUN_SHAKE_TIME 秒一次)
+
+Handle g_ForwardClientRun = INVALID_HANDLE;

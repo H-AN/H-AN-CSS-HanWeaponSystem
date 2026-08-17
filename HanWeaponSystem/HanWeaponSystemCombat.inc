@@ -121,6 +121,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
     // 检视触发(F键/impulse 100)
     Inspect_OnPlayerRunCmd(client, impulse, bIsReloading);
 
+    // 奔跑触发(前进按住时点按Shift); 奔跑中剔除IN_SPEED/禁止换弹时返回 Plugin_Changed 透传按键修改
+    Action runRet = Run_OnPlayerRunCmd(client, buttons, bIsReloading);
+    if (runRet == Plugin_Changed)
+    {
+        return Plugin_Changed;
+    }
+
     return Plugin_Continue;
 }
 

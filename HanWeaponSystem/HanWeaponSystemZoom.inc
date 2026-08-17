@@ -94,8 +94,8 @@ void Zoom_OnPlayerRunCmd(int client, int buttons, bool bReloading)
     if (!Zoom_IsWeaponZoomable(weapon))
         return;
 
-    // 检视中禁止开镜(互斥)
-    if (g_bInspecting[client])
+    // 检视/奔跑中禁止开镜(互斥)
+    if (g_bInspecting[client] || g_bRunning[client])
         return;
 
     static bool s_bPrevAttack2[MAXPLAYERS + 1];

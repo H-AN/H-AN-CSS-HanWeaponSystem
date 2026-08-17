@@ -17,6 +17,12 @@
 // 手电筒状态位(实测 F键/impulse 100 会使玩家 m_fEffects 在 0x0 <-> 0x4 切换)
 #define EF_FLASHLIGHT 4
 
+// 检视音效固定通道(同一路径同一通道才能被 StopSound 正确停止)
+#define SNDCHAN_INSPECT SNDCHAN_STATIC
+
+// 检视音效最多支持逗号分隔的数量
+#define MAX_INSPECT_SOUNDS 8
+
 void Inspect_OnPluginStart()
 {
     RegConsoleCmd("sm_inspect", Cmd_Inspect, "检视当前武器");
@@ -58,8 +64,8 @@ public Action Cmd_Inspect(int client, int args)
     if (weapon <= 0)
         return Plugin_Handled;
 
-    // 机瞄中/过渡中禁止检视
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0)
+    // 机瞄中/过渡中/奔跑中禁止检视
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bRunning[client])
         return Plugin_Handled;
 
     // 单次模式: 检视中忽略重复触发; 重复模式: 允许重播
@@ -103,8 +109,8 @@ void Inspect_OnPlayerRunCmd(int client, int impulse, bool bReloading)
         if (weapon <= 0)
             return;
 
-        // 机瞄中/过渡中禁止检视
-        if (g_bZooming[client] || g_iZoomInSwitch[client] != 0)
+        // 机瞄中/过渡中/奔跑中禁止检视
+        if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bRunning[client])
             return;
 
         // 单次模式: 检视中忽略重复触发; 重复模式: 允许反复按F重播
@@ -131,6 +137,24 @@ void Inspect_OnPlayerRunCmd(int client, int impulse, bool bReloading)
 }
 
 // ============================================================================
+// >> 停止检视音效(只停自己的固定通道音效, 无音效则为空操作)
+// ============================================================================
+void Inspect_StopSound(int client)
+{
+    if (g_sInspectSound[client][0] == '\0')
+        return;
+
+    if (client < 1 || client > MaxClients || !IsClientInGame(client) || !IsValidEdict(client))
+    {
+        g_sInspectSound[client][0] = '\0';
+        return;
+    }
+
+    StopSound(client, SNDCHAN_INSPECT, g_sInspectSound[client]);
+    g_sInspectSound[client][0] = '\0';
+}
+
+// ============================================================================
 // >> 开始检视
 // ============================================================================
 void Inspect_Start(int client)
@@ -138,6 +162,12 @@ void Inspect_Start(int client)
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
     if (weapon <= 0)
         return;
+
+    // 记录进入检视前状态(重复模式重播时已在检视中, 不重复广播开始)
+    bool bWasInspecting = g_bInspecting[client];
+
+    // 重复模式重播时先停掉上一段检视音效, 避免音效重叠
+    Inspect_StopSound(client);
 
     int seq = Inspect_GetInt(weapon, "inspectseq", -1);
     if (seq < 0)
@@ -155,6 +185,33 @@ void Inspect_Start(int client)
     g_fInspectEnd[client] = GetGameTime() + dur;
     g_fInspectBlock[client] = GetGameTime() + 0.5;
 
+    // 检视音效: 缺省不填不播放; 多路径逗号分隔随机选一个; 只自己听得见
+    char soundStr[512];
+    if (GetInspectConfigValue(weapon, "inspectsound", soundStr, sizeof(soundStr)))
+    {
+        char parts[MAX_INSPECT_SOUNDS][PLATFORM_MAX_PATH];
+        int count = ExplodeString(soundStr, ",", parts, sizeof(parts), sizeof(parts[]));
+
+        int valid[MAX_INSPECT_SOUNDS];
+        int validCount = 0;
+        for (int i = 0; i < count; i++)
+        {
+            TrimString(parts[i]);
+            if (strlen(parts[i]) > 0)
+            {
+                valid[validCount] = i;
+                validCount++;
+            }
+        }
+
+        if (validCount > 0)
+        {
+            int pick = valid[GetRandomInt(0, validCount - 1)];
+            strcopy(g_sInspectSound[client], sizeof(g_sInspectSound[]), parts[pick]);
+            EmitSoundToClient(client, parts[pick], client, SNDCHAN_INSPECT, SNDLEVEL_NORMAL);
+        }
+    }
+
     // 单次模式: 直接强制 1号VM 检视序列
     // 重复模式: 起源引擎设置同一序列不会重播, 需先切其他序列再切回
     // 故标记重启(2=播一帧引擎原生序列, 1=下帧切回检视序列), 由 OnPostThinkPost 执行
@@ -170,6 +227,12 @@ void Inspect_Start(int client)
 
     // 压住武器空闲动画, 避免中途插回 idle 打断检视
     SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", GetGameTime() + dur);
+
+    // 首次进入检视才广播开始事件(重复模式重播不重复广播)
+    if (!bWasInspecting)
+    {
+        Inspect_FireForward(client, true);
+    }
 }
 
 // ============================================================================
@@ -183,6 +246,10 @@ void Inspect_End(int client)
     g_bInspecting[client] = false;
     g_iInspectWeapon[client] = -1;
     g_iInspectRestart[client] = 0;
+
+    // 结束检视即停止检视音效 + 广播结束事件
+    Inspect_StopSound(client);
+    Inspect_FireForward(client, false);
 
     // 恢复 VM[1] 到引擎原生序列(idle), 避免残留检视序列最后一帧导致下次设同序列无法重播
     if (ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]) &&
@@ -220,8 +287,8 @@ void Inspect_OnPostThinkPost(int client)
         return;
     }
 
-    // 机瞄优先: 机瞄开启时强制退出检视
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0)
+    // 机瞄/奔跑优先: 开启时强制退出检视
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bRunning[client])
     {
         Inspect_End(client);
         return;
@@ -285,6 +352,20 @@ void Inspect_OnPostThinkPost(int client)
 }
 
 // ============================================================================
+// >> 事件转发(开始/结束检视广播给其他插件)
+// ============================================================================
+void Inspect_FireForward(int client, bool inspecting)
+{
+    if (g_ForwardClientInspect == INVALID_HANDLE)
+        return;
+
+    Call_StartForward(g_ForwardClientInspect);
+    Call_PushCell(client);
+    Call_PushCell(inspecting);
+    Call_Finish();
+}
+
+// ============================================================================
 // >> 重置(死亡/掉线)
 // ============================================================================
 void Inspect_Reset(int client)
@@ -294,4 +375,7 @@ void Inspect_Reset(int client)
     g_fInspectEnd[client] = 0.0;
     g_fInspectBlock[client] = 0.0;
     g_iInspectRestart[client] = 0;
+
+    // 掉线/死亡时停止检视音效
+    Inspect_StopSound(client);
 }

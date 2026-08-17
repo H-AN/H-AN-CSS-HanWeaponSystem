@@ -17,6 +17,8 @@
 #include "HanWeaponSystem/HanWeaponSystemZoom"
 #include "HanWeaponSystem/HanWeaponSystemInspectConfig"
 #include "HanWeaponSystem/HanWeaponSystemInspect"
+#include "HanWeaponSystem/HanWeaponSystemRunConfig"
+#include "HanWeaponSystem/HanWeaponSystemRun"
 #include "HanWeaponSystem/HanWeaponSystemWeapon"
 #include "HanWeaponSystem/HanWeaponSystemCombat"
 #include "HanWeaponSystem/HanWeaponSystemViewModel"
@@ -46,6 +48,8 @@ public void OnPluginStart()
     Zoom_OnPluginStart();
     InspectConfig_OnPluginStart();
     Inspect_OnPluginStart();
+    RunConfig_OnPluginStart();
+    Run_OnPluginStart();
     ViewModel_OnPluginStart();
 
     HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
@@ -64,6 +68,7 @@ public void OnMapStart()
     ZoomConfig_OnMapStart();
     Zoom_OnMapStart();
     InspectConfig_OnMapStart();
+    RunConfig_OnMapStart();
     Camera_OnMapStart();
 }
 
@@ -103,6 +108,7 @@ public void OnClientDisconnect(int client)
     g_fZoomBlock[client] = 0.0;
 
     Inspect_Reset(client);
+    Run_Reset(client);
 
     ClientVM[client][0] = -1;
     ClientVM[client][1] = -1;
