@@ -111,7 +111,7 @@ public Action Run_OnPlayerRunCmd(int client, int &buttons, bool bReloading)
         bool bStop = false;
         if (weapon <= 0)
             bStop = true;
-        else if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bInspecting[client])
+        else if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bInspecting[client])
             bStop = true;
         else if (bReloading)
             bStop = true;
@@ -185,8 +185,8 @@ void Run_TryStart(int client, int buttons, bool bReloading)
         (buttons & IN_JUMP) || (buttons & IN_DUCK) || (buttons & IN_ATTACK))
         return;
 
-    // 互斥门槛: 机瞄/检视期间不可奔跑
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bInspecting[client])
+    // 互斥门槛: 机瞄/侧瞄/检视期间不可奔跑
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bInspecting[client])
         return;
 
     // 换弹/换枪(deploy)期间不允许奔跑
@@ -329,8 +329,8 @@ void Run_OnPostThinkPost(int client)
         return;
     }
 
-    // 机瞄/检视/换弹优先: 强制退出奔跑(安全网, 正常由 runcmd 触发 runout)
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bInspecting[client])
+    // 机瞄/侧瞄/检视/换弹优先: 强制退出奔跑(安全网, 正常由 runcmd 触发 runout)
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bInspecting[client])
     {
         Run_End(client);
         return;

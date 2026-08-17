@@ -36,7 +36,12 @@ bool g_bZooming[MAXPLAYERS + 1];
 int g_iZoomInSwitch[MAXPLAYERS + 1];        // 0=无过渡 1=开镜过渡中 2=关镜过渡中
 float g_fZoomBlock[MAXPLAYERS + 1];         // 机瞄切换防抖时间
 
+bool g_bSideAiming[MAXPLAYERS + 1];
+int g_iSideAimInSwitch[MAXPLAYERS + 1];     // 0=无过渡 1=进入侧瞄过渡中 2=退出侧瞄过渡中
+float g_fSideAimBlock[MAXPLAYERS + 1];      // 侧瞄切换防抖时间
+
 Handle g_ForwardClientZoom = INVALID_HANDLE;
+Handle g_ForwardClientSideAim = INVALID_HANDLE;
 
 // ============================================================================
 // >> 检视全局

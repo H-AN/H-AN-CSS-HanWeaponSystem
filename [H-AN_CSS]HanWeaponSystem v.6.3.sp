@@ -112,6 +112,10 @@ public void OnClientDisconnect(int client)
     g_iZoomInSwitch[client] = 0;
     g_fZoomBlock[client] = 0.0;
 
+    g_bSideAiming[client] = false;
+    g_iSideAimInSwitch[client] = 0;
+    g_fSideAimBlock[client] = 0.0;
+
     Inspect_Reset(client);
     Run_Reset(client);
     EmptyReload_Reset(client);

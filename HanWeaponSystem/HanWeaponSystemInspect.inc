@@ -64,8 +64,8 @@ public Action Cmd_Inspect(int client, int args)
     if (weapon <= 0)
         return Plugin_Handled;
 
-    // 机瞄中/过渡中/奔跑中禁止检视
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bRunning[client])
+    // 机瞄/侧瞄中/过渡中/奔跑中禁止检视
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
         return Plugin_Handled;
 
     // 单次模式: 检视中忽略重复触发; 重复模式: 允许重播
@@ -109,8 +109,8 @@ void Inspect_OnPlayerRunCmd(int client, int impulse, bool bReloading)
         if (weapon <= 0)
             return;
 
-        // 机瞄中/过渡中/奔跑中禁止检视
-        if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bRunning[client])
+        // 机瞄/侧瞄中/过渡中/奔跑中禁止检视
+        if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
             return;
 
         // 单次模式: 检视中忽略重复触发; 重复模式: 允许反复按F重播
@@ -287,8 +287,8 @@ void Inspect_OnPostThinkPost(int client)
         return;
     }
 
-    // 机瞄/奔跑优先: 开启时强制退出检视
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bRunning[client])
+    // 机瞄/侧瞄/奔跑优先: 开启时强制退出检视
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
     {
         Inspect_End(client);
         return;

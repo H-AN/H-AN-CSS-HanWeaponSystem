@@ -45,7 +45,7 @@ void WriteDefaultZoomConfig(const char[] path)
     if (file == INVALID_HANDLE)
         return;
 
-    WriteFileLine(file, "// HanWeaponSystem 机瞄配置文件");
+    WriteFileLine(file, "// HanWeaponSystem 机瞄/侧瞄配置文件");
     WriteFileLine(file, "// 此文件与 HanWeaponData.cfg 自动同步：主配置新增武器时会自动追加一个默认键组");
     WriteFileLine(file, "// 普通武器保持 zoom 0 即可，右键无任何效果；做了机瞄模型的武器再开启并填写参数");
     WriteFileLine(file, "// 字段说明：");
@@ -61,6 +61,19 @@ void WriteDefaultZoomConfig(const char[] path)
     WriteFileLine(file, "// zoomcrosshair  1=机瞄时隐藏准心 0=不隐藏");
     WriteFileLine(file, "// zoompunch      机瞄时屏幕震动系数(0.5=减半, 1.0=不变)");
     WriteFileLine(file, "// zoomskinadd    不开镜内放大时的镜片皮肤索引增量(防镜片黑屏, 0=不使用)");
+    WriteFileLine(file, "//");
+    WriteFileLine(file, "// 侧瞄参数(与机瞄完全平行的独立一套, 全部 sideaim 前缀, 中键 IN_ATTACK3 触发):");
+    WriteFileLine(file, "// sideaim         1=启用侧瞄 0=关闭(开启但未填模型也无效)");
+    WriteFileLine(file, "// sideaimmodel    侧瞄时 VM 显示的模型(完整路径)");
+    WriteFileLine(file, "// sideaimanimmove 进入侧瞄衔接动画序列号(-1=无衔接直接换模型)");
+    WriteFileLine(file, "// sideaimanimtime 衔接动画时长(秒)");
+    WriteFileLine(file, "// sideaimanimfire 1=侧瞄时不强制同步开火动画");
+    WriteFileLine(file, "// sideaimfov      侧瞄镜内放大 FOV(<90 启用)");
+    WriteFileLine(file, "// sideaimaccuracy 侧瞄射击精度");
+    WriteFileLine(file, "// sideaimspeed    侧瞄时移动速度系数");
+    WriteFileLine(file, "// sideaimcrosshair 1=侧瞄时隐藏准心 0=不隐藏");
+    WriteFileLine(file, "// sideaimpunch    侧瞄时屏幕震动系数");
+    WriteFileLine(file, "// sideaimskinadd  侧瞄镜片皮肤索引增量");
     WriteFileLine(file, "\"HanWeaponSystem\"");
     WriteFileLine(file, "{");
     WriteFileLine(file, "}");
@@ -222,6 +235,18 @@ void SyncZoomConfig()
                 WriteFileLine(outFile, "        // \"zoomcrosshair\"   \"1\"");
                 WriteFileLine(outFile, "        // \"zoompunch\"       \"1.0\"");
                 WriteFileLine(outFile, "        // \"zoomskinadd\"     \"0\"");
+                WriteFileLine(outFile, "        \"sideaim\"         \"0\"");
+                WriteFileLine(outFile, "        // 侧瞄参数(仅 sideaim 1 时生效, 中键触发):");
+                WriteFileLine(outFile, "        // \"sideaimmodel\"    \"models/v_custom/v_ak47_side.mdl\"");
+                WriteFileLine(outFile, "        // \"sideaimanimmove\" \"8\"");
+                WriteFileLine(outFile, "        // \"sideaimanimtime\" \"0.3\"");
+                WriteFileLine(outFile, "        // \"sideaimanimfire\" \"0\"");
+                WriteFileLine(outFile, "        // \"sideaimfov\"      \"80\"");
+                WriteFileLine(outFile, "        // \"sideaimaccuracy\" \"0.015\"");
+                WriteFileLine(outFile, "        // \"sideaimspeed\"    \"0.8\"");
+                WriteFileLine(outFile, "        // \"sideaimcrosshair\" \"1\"");
+                WriteFileLine(outFile, "        // \"sideaimpunch\"    \"1.0\"");
+                WriteFileLine(outFile, "        // \"sideaimskinadd\"  \"0\"");
                 WriteFileLine(outFile, "    }");
             }
         }
@@ -287,6 +312,15 @@ void PrecacheZoomModels()
     {
         char model[PLATFORM_MAX_PATH];
         KvGetString(g_hZoomConfig, "zoommodel", model, sizeof(model), "");
+        if (strlen(model) > 0)
+        {
+            if (PrecacheModel(model))
+            {
+                AddFileToDownloadsTable(model);
+            }
+        }
+
+        KvGetString(g_hZoomConfig, "sideaimmodel", model, sizeof(model), "");
         if (strlen(model) > 0)
         {
             if (PrecacheModel(model))

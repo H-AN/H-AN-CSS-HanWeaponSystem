@@ -51,6 +51,30 @@ native bool Han_IsWeaponZoomable(int client);
 forward void Han_OnClientZoom(int client, bool zooming);
 
 /**
+ * 玩家当前是否处于侧瞄状态。
+ *
+ * @param client 玩家索引
+ * @return true = 侧瞄中
+ */
+native bool Han_IsClientSideAiming(int client);
+
+/**
+ * 当前武器是否支持侧瞄（sideaim 配置为 1 且填写了侧瞄模型）。
+ *
+ * @param client 玩家索引
+ * @return true = 可侧瞄
+ */
+native bool Han_IsWeaponSideAimable(int client);
+
+/**
+ * 玩家侧瞄状态变化时触发。
+ *
+ * @param client 玩家索引
+ * @param aiming true = 进入侧瞄, false = 退出侧瞄
+ */
+forward void Han_OnClientSideAim(int client, bool aiming);
+
+/**
  * 玩家当前是否处于检视中。
  *
  * @param client 玩家索引

@@ -66,7 +66,17 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// autofire:      自动连发标记(1/0)，供其他插件查询");
     WriteFileLine(file, "// Sqtype:        1=手动自定义动画序列(IsCustom2)");
     WriteFileLine(file, "// skincode:      皮肤索引");
-    WriteFileLine(file, "// 机瞄请到 HanWeaponZoomData.cfg 中配置");
+    WriteFileLine(file, "// ammo:          给予弹夹子弹量(默认20000)");
+    WriteFileLine(file, "// maxammo:       弹夹容量(用于换弹音效播放判断)");
+    WriteFileLine(file, "// killicon:      击杀图标");
+    WriteFileLine(file, "// team:          可用队伍(all/ct/t/both等)");
+    WriteFileLine(file, "// reloadsound:   换弹音效路径(支持 0:路径,逗号分隔)");
+    WriteFileLine(file, "// usedroppedmodel: 1=掉落时使用假W模型 0=直接改世界模型");
+    WriteFileLine(file, "// armfix:        手臂修复 1=每帧对1号VM执行 m_hWeapon 自赋值修复左手模 0/缺省=不管");
+    WriteFileLine(file, "// 机瞄/侧瞄请到 HanWeaponZoomData.cfg 中配置");
+    WriteFileLine(file, "// 检视请到 HanWeaponInspectData.cfg 中配置");
+    WriteFileLine(file, "// 奔跑请到 HanWeaponRunData.cfg 中配置");
+    WriteFileLine(file, "// 空仓/战术换弹请到 HanWeaponEmptyReloadData.cfg 中配置");
     WriteFileLine(file, "\"HanWeaponSystem\"");
     WriteFileLine(file, "{");
     WriteFileLine(file, "    \"weapon_example\"");

@@ -9,11 +9,14 @@ void RegisterWeaponAPI()
     CreateNative("IsWeaponAutoFire", Native_IsWeaponAutoFire);
     CreateNative("Han_IsClientZooming", Native_Han_IsClientZooming);
     CreateNative("Han_IsWeaponZoomable", Native_Han_IsWeaponZoomable);
+    CreateNative("Han_IsClientSideAiming", Native_Han_IsClientSideAiming);
+    CreateNative("Han_IsWeaponSideAimable", Native_Han_IsWeaponSideAimable);
     CreateNative("Han_IsClientInspecting", Native_Han_IsClientInspecting);
     CreateNative("Han_IsWeaponInspectable", Native_Han_IsWeaponInspectable);
     CreateNative("Han_IsClientRunning", Native_Han_IsClientRunning);
 
     g_ForwardClientZoom = new GlobalForward("Han_OnClientZoom", ET_Ignore, Param_Cell, Param_Cell);
+    g_ForwardClientSideAim = new GlobalForward("Han_OnClientSideAim", ET_Ignore, Param_Cell, Param_Cell);
     g_ForwardClientInspect = new GlobalForward("Han_OnClientInspect", ET_Ignore, Param_Cell, Param_Cell);
     g_ForwardClientRun = new GlobalForward("Han_OnClientRun", ET_Ignore, Param_Cell, Param_Cell);
     g_ForwardClientEmptyReload = new GlobalForward("Han_OnClientEmptyReload", ET_Ignore, Param_Cell);
@@ -71,6 +74,27 @@ public any Native_Han_IsWeaponZoomable(Handle plugin, int numParams)
         return false;
 
     return Zoom_IsWeaponZoomable(weapon);
+}
+
+public any Native_Han_IsClientSideAiming(Handle plugin, int numParams)
+{
+    int client = GetNativeCell(1);
+    if (client < 1 || client > MaxClients)
+        return false;
+    return g_bSideAiming[client];
+}
+
+public any Native_Han_IsWeaponSideAimable(Handle plugin, int numParams)
+{
+    int client = GetNativeCell(1);
+    if (client < 1 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
+        return false;
+
+    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    if (weapon <= 0)
+        return false;
+
+    return Zoom_IsWeaponSideAimable(weapon);
 }
 
 public any Native_Han_IsClientInspecting(Handle plugin, int numParams)

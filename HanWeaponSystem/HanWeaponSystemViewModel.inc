@@ -127,9 +127,9 @@ public void OnPostThinkPost(int client)
     // 换武器
     if (WeaponIndex != OldWeapon[client])
     {
-        // 换武器强制退出机瞄
-        if (g_bZooming[client] || g_iZoomInSwitch[client] != 0)
-            Zoom_ForceExit(client);
+        // 换武器强制退出机瞄/侧瞄
+        if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0)
+            Aim_ForceExit(client);
 
         GetEdictClassname(WeaponIndex, ClassName, sizeof(ClassName));
 
@@ -261,6 +261,13 @@ public void OnPostThinkPost(int client)
         }
     }
 
+    // armfix 手臂修复: 配置填写 1 时每帧对 1号VM 执行 m_hWeapon 自赋值(修复部分左手模)
+    char armfixStr[8];
+    if (GetWeaponConfigValue(WeaponIndex, "armfix", armfixStr, sizeof(armfixStr)) && StringToInt(armfixStr) > 0)
+    {
+        SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", 213);
+    }
+
     // 隐藏 0号VM 一帧后生效
     if (SpawnCheck[client])
     {
@@ -296,9 +303,9 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
     int UserId = GetEventInt(event, "userid");
     int client = GetClientOfUserId(UserId);
 
-    // 强制退出机瞄
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0)
-        Zoom_ForceExit(client);
+    // 强制退出机瞄/侧瞄
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0)
+        Aim_ForceExit(client);
 
     // 强制退出检视
     Inspect_End(client);
@@ -348,8 +355,13 @@ void SetModelSequenceFlags(int client, int weapon)
         }
     }
 
-    // 机瞄中强制自动同步
-    if (g_bZooming[client] && Zoom_IsWeaponZoomable(weapon))
+    // 机瞄/侧瞄中强制自动同步
+    if ((g_bZooming[client] || g_iZoomInSwitch[client] != 0) && Zoom_IsWeaponZoomable(weapon))
+    {
+        IsCustom[client] = true;
+        IsCustom2[client] = false;
+    }
+    else if ((g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0) && Zoom_IsWeaponSideAimable(weapon))
     {
         IsCustom[client] = true;
         IsCustom2[client] = false;
