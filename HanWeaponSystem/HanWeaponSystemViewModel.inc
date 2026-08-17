@@ -162,7 +162,29 @@ public void OnPostThinkPost(int client)
 
             SetEntProp(ClientVM[client][1], Prop_Send, "m_nModelIndex", modelIndex);
 
-            SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", GetEntPropEnt(ClientVM[client][0], Prop_Send, "m_hWeapon"));
+            // armfix: 需要修复的武器, 遍历地图找现成 prop_physics_multiplayer 指向它
+            char armfixStr[8];
+            if (GetWeaponConfigValue(WeaponIndex, "armfix", armfixStr, sizeof(armfixStr)) && StringToInt(armfixStr) > 0)
+            {
+                int fixEnt = -1;
+                int ent = -1;
+                while ((ent = FindEntityByClassname(ent, "prop_physics_multiplayer")) != -1)
+                {
+                    if (IsValidEdict(ent) && IsValidEntity(ent))
+                    {
+                        fixEnt = ent;
+                        break;
+                    }
+                }
+                if (fixEnt > 0)
+                    SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", fixEnt);
+                else
+                    SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", GetEntPropEnt(ClientVM[client][0], Prop_Send, "m_hWeapon"));
+            }
+            else
+            {
+                SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", GetEntPropEnt(ClientVM[client][0], Prop_Send, "m_hWeapon"));
+            }
 
             SetModelSequenceFlags(client, WeaponIndex);
 
@@ -259,13 +281,6 @@ public void OnPostThinkPost(int client)
             else if (Data[client])
                 Data[client] = 0;
         }
-    }
-
-    // armfix 手臂修复: 配置填写 1 时每帧对 1号VM 执行 m_hWeapon 自赋值(修复部分左手模)
-    char armfixStr[8];
-    if (GetWeaponConfigValue(WeaponIndex, "armfix", armfixStr, sizeof(armfixStr)) && StringToInt(armfixStr) > 0)
-    {
-        SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", 213);
     }
 
     // 隐藏 0号VM 一帧后生效
