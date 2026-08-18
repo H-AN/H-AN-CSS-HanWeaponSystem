@@ -1,4 +1,4 @@
-#define VERSION "6.4"
+#define VERSION "6.5"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -67,10 +67,14 @@ int g_iRunStage[MAXPLAYERS + 1];         // 0=无 1=runin过渡 2=奔跑循环 3
 int g_iRunWeapon[MAXPLAYERS + 1];        // 奔跑开始时武器实体
 float g_fRunSwitch[MAXPLAYERS + 1];      // 循环切换/过渡结束时间戳
 bool g_bRunFrame[MAXPLAYERS + 1];        // 循环动画两帧切换标记
-bool g_bRunSpeedApplied[MAXPLAYERS + 1]; // 奔跑速度是否已写入(防每tick重复写)
 float g_fSpeedPressTime[MAXPLAYERS + 1]; // IN_SPEED 按下时刻(点按判定用)
 bool g_bSpeedDown[MAXPLAYERS + 1];       // IN_SPEED 当前是否按下(边沿检测用)
-float g_fRunShakeNext[MAXPLAYERS + 1];   // 下次抖动触发时间(每 RUN_SHAKE_TIME 秒一次)
+float g_fRunShakeNext[MAXPLAYERS + 1];   // 下次抖动触发时间(每 RUN_SHAKE_INTERVAL 秒一次)
+float g_fRunShakeYaw[MAXPLAYERS + 1];    // 抖动弹簧: 当前偏航角(度, 左右摆动, 写入 m_vecPunchAngle.y)
+float g_fRunShakeYawVel[MAXPLAYERS + 1]; // 抖动弹簧: 偏航角速度(度/秒)
+float g_fRunShakePitch[MAXPLAYERS + 1];  // 抖动弹簧: 当前俯仰角(度, 点头, 写入 m_vecPunchAngle.x)
+float g_fRunShakePitchVel[MAXPLAYERS + 1]; // 抖动弹簧: 俯仰角速度(度/秒)
+bool g_bRunShakeSign[MAXPLAYERS + 1];    // 抖动脉冲交替符号(模拟左右脚交替摆动)
 
 Handle g_ForwardClientRun = INVALID_HANDLE;
 

@@ -23,15 +23,18 @@
 // IN_SPEED 点按判定窗口(秒): 短按松开视为点按触发奔跑, 长按保持静步
 #define RUN_SPEED_TAP_TIME 0.2
 
-// 奔跑抖动参数(幅度取配置 runshake, 频率/时长固定)
-#define RUN_SHAKE_FREQ 0.4
-#define RUN_SHAKE_TIME 2.0
-// 超大负值幅度: 引擎会clamp到0, 用于每次触发前强制清空累计幅度
-#define RUN_SHAKE_RESET_AMP -9999.0
+// 奔跑抖动参数(弹簧阻尼器: 幅度取配置 runshake 作强度, 间隔固定无需步伐检测)
+#define RUN_SHAKE_INTERVAL 0.3            // 晃动脉冲间隔(秒)
+#define RUN_SHAKE_DAMPING 9.0             // 弹簧阻尼(速度衰减, Beatrun 原值)
+#define RUN_SHAKE_SPRING 120.0            // 弹簧常数(拉回零点, Beatrun 原值)
+#define RUN_SHAKE_PITCH_GAIN 30.0         // 俯仰(点头)注入增益(度/秒; runshake=0.6 时峰值约 1.6°)
+#define RUN_SHAKE_YAW_GAIN 40.0           // 偏航(左右摆头)注入增益(度/秒; runshake=0.6 时峰值约 2.2°, 替代CS:S不存在的m_flRollAngle)
 
 void Run_OnPluginStart()
 {
-    // 无独立命令/cvar，配置与状态机见 RunConfig / 主插件
+    // 死亡/复活时清零抖动弹簧(防止死亡瞬间积分停止导致角度冻结)
+    HookEvent("player_death", Run_EventPlayerDeath, EventHookMode_Post);
+    HookEvent("player_spawn", Run_EventPlayerSpawn, EventHookMode_Post);
 }
 
 // ============================================================================
@@ -54,28 +57,40 @@ float Run_GetCycleTime(int weapon)
 }
 
 // ============================================================================
-// >> 奔跑速度写入/恢复
+// >> 奔跑力推动(模式同 滑铲/滑索 插件; 已取代旧版 m_flLaggedMovementValue 倍率)
+//    面向角取 forward -> 贴地归一化 -> 按 runspeed(启动推力) 叠加到当前速度(不覆盖),
+//    保留垂直速度; runmaxspeed 为总体速度上限(默认走路约250, 500≈2倍速), 达到后不再加力。
 // ============================================================================
-void Run_ApplySpeed(int client, int weapon)
+void Run_ApplyForce(int client, int weapon)
 {
-    if (g_bRunSpeedApplied[client])
+    float force = Run_GetFloat(weapon, "runspeed", 0.0);
+    if (force <= 0.0)
         return;
 
-    float speed = Run_GetFloat(weapon, "runspeed", 0.0);
-    if (speed > 0.0)
-    {
-        SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", speed);
-        g_bRunSpeedApplied[client] = true;
-    }
-}
+    float maxSpeed = Run_GetFloat(weapon, "runmaxspeed", 0.0);
 
-void Run_RestoreSpeed(int client)
-{
-    if (!g_bRunSpeedApplied[client])
+    float vAng[3];
+    float vDir[3];
+    GetClientEyeAngles(client, vAng);
+    GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
+
+    vDir[2] = 0.0;
+    NormalizeVector(vDir, vDir);
+
+    float curVel[3];
+    GetEntPropVector(client, Prop_Data, "m_vecVelocity", curVel);
+
+    float horizontal = SquareRoot(curVel[0] * curVel[0] + curVel[1] * curVel[1]);
+    if (maxSpeed > 0.0 && horizontal >= maxSpeed)
         return;
 
-    SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", 1.0);
-    g_bRunSpeedApplied[client] = false;
+    ScaleVector(vDir, force);
+
+    float vVel[3];
+    AddVectors(curVel, vDir, vVel);
+    vVel[2] = curVel[2];
+
+    TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vVel);
 }
 
 // ============================================================================
@@ -88,6 +103,9 @@ public Action Run_OnPlayerRunCmd(int client, int &buttons, bool bReloading)
 {
     int stage = g_iRunStage[client];
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+
+    // 抖动弹簧积分+脉冲注入(每tick执行, 停止奔跑后弹簧自然衰减归零) ★新版
+    Run_ShakeTick(client, weapon);
 
     // ===== 奔跑流程中 =====
     if (stage != RUN_STAGE_NONE)
@@ -216,7 +234,6 @@ void Run_Start(int client)
 
     g_iRunWeapon[client] = weapon;
     g_bRunFrame[client] = false;
-    g_bRunSpeedApplied[client] = false;
 
     if (runin >= 0 && runinlen > 0)
     {
@@ -234,7 +251,7 @@ void Run_Start(int client)
     // 奔跑开始即触发首次抖动
     g_fRunShakeNext[client] = 0.0;
 
-    Run_ApplySpeed(client, weapon);
+    // 速度推力由 Run_ApplyForce 每帧在 Run_OnPostThinkPost 施加
 
     Run_FireForward(client, true);
 }
@@ -249,8 +266,7 @@ void Run_Stop(int client)
 
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 
-    // 恢复奔跑速度
-    Run_RestoreSpeed(client);
+    // 推力为叠加式, 停止后引擎自然减速, 无需恢复
 
     // 已在 runout 中
     if (g_iRunStage[client] == RUN_STAGE_OUT)
@@ -287,11 +303,11 @@ void Run_End(int client)
     g_iRunWeapon[client] = -1;
     g_fRunShakeNext[client] = 0.0;
 
-    // 立即停止屏幕抖动, 消除奔跑结束后的抖动尾巴
-    Run_StopShake(client);
+    // 死亡或已无武器时直接清零抖动弹簧(否则无法积分导致角度冻结); 正常停止交给弹簧自然衰减
+    if (!IsPlayerAlive(client) || GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon") <= 0)
+        Run_ShakeReset(client);
 
-    // 恢复奔跑速度
-    Run_RestoreSpeed(client);
+    // 推力为叠加式, 停止后引擎自然减速, 无需恢复
 
     // 恢复 VM[1] 到引擎原生序列(idle)
     if (ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]) &&
@@ -344,6 +360,10 @@ void Run_OnPostThinkPost(int client)
         Run_End(client);
         return;
     }
+
+    // 奔跑力推动(仅实际冲刺阶段施加; OUT 阶段不推, 自然减速过渡)
+    if (stage == RUN_STAGE_IN || stage == RUN_STAGE_RUN)
+        Run_ApplyForce(client, weapon);
 
     float now = GetGameTime();
 
@@ -403,57 +423,87 @@ void Run_OnPostThinkPost(int client)
 
     // 奔跑期间压住武器空闲动画, 避免中途插回 idle 打断
     SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", GetGameTime() + 1.0);
+}
 
-    // 抖动(仅冲刺阶段; 每 RUN_SHAKE_TIME 秒触发)
-    if (stage == RUN_STAGE_IN || stage == RUN_STAGE_RUN)
+// ============================================================================
+// >> 新版抖动: 弹簧阻尼器 + 固定间隔脉冲(Beatrun 移植, 无需步伐检测)
+//    奔跑中每 RUN_SHAKE_INTERVAL 秒注入一次脉冲, 弹簧把每脚平滑成连续摆动并
+//    自然衰减; 停止奔跑后弹簧自动归零, 无抖动尾巴。
+//    CS:S 玩家无 m_flRollAngle(引擎内算侧倾, 服务端不可写), 故用 m_vecPunchAngle
+//    的 x(俯仰点头)/y(偏航左右摆头) 驱动。z(roll) 保持不变。
+// ============================================================================
+void Run_ShakeTick(int client, int weapon)
+{
+    float FT = GetTickInterval();
+    if (FT <= 0.0)
+        FT = 0.015;
+
+    // 弹簧-阻尼积分(偏航 yaw, 对应 Beatrun 阻尼9/弹簧120)
+    g_fRunShakeYawVel[client] += (-g_fRunShakeYaw[client] * RUN_SHAKE_SPRING - g_fRunShakeYawVel[client] * RUN_SHAKE_DAMPING) * FT;
+    g_fRunShakeYaw[client] += g_fRunShakeYawVel[client] * FT;
+
+    // 弹簧-阻尼积分(俯仰 pitch)
+    g_fRunShakePitchVel[client] += (-g_fRunShakePitch[client] * RUN_SHAKE_SPRING - g_fRunShakePitchVel[client] * RUN_SHAKE_DAMPING) * FT;
+    g_fRunShakePitch[client] += g_fRunShakePitchVel[client] * FT;
+
+    // 奔跑中(冲刺阶段)每 RUN_SHAKE_INTERVAL 注入一次脉冲
+    if (weapon > 0 && (g_iRunStage[client] == RUN_STAGE_IN || g_iRunStage[client] == RUN_STAGE_RUN))
     {
         float shake = Run_GetFloat(weapon, "runshake", 0.0);
-        if (shake > 0.0 && now >= g_fRunShakeNext[client])
+        if (shake > 0.0 && GetGameTime() >= g_fRunShakeNext[client])
         {
-            // 先发超大负值(引擎clamp到0)清空累计幅度, 再发正值, 每次幅度精确=x且不累加
-            Run_CreateShake(client, RUN_SHAKE_RESET_AMP, RUN_SHAKE_TIME);
-            Run_CreateShake(client, shake, RUN_SHAKE_TIME);
-            g_fRunShakeNext[client] = now + RUN_SHAKE_TIME;
+            // 交替符号(模拟左右脚交替摆头, 无需步伐检测)
+            g_bRunShakeSign[client] = !g_bRunShakeSign[client];
+            float sign = g_bRunShakeSign[client] ? 1.0 : -1.0;
+
+            g_fRunShakeYawVel[client] += sign * shake * RUN_SHAKE_YAW_GAIN;
+            g_fRunShakePitchVel[client] += shake * RUN_SHAKE_PITCH_GAIN;
+
+            g_fRunShakeNext[client] = GetGameTime() + RUN_SHAKE_INTERVAL;
         }
+    }
+
+    // 有晃动能量才写回引擎(避免覆盖受击/伤害 punch)
+    if (g_iRunStage[client] != RUN_STAGE_NONE ||
+        FloatAbs(g_fRunShakeYaw[client]) > 0.01 || FloatAbs(g_fRunShakeYawVel[client]) > 0.01 ||
+        FloatAbs(g_fRunShakePitch[client]) > 0.01 || FloatAbs(g_fRunShakePitchVel[client]) > 0.01)
+    {
+        float punch[3];
+        GetEntPropVector(client, Prop_Send, "m_vecPunchAngle", punch);
+        punch[0] = g_fRunShakePitch[client];
+        punch[1] = g_fRunShakeYaw[client];
+        SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", punch);
     }
 }
 
 // ============================================================================
-// >> 屏幕抖动(幅度取配置 runshake, 频率/时长固定)
+// >> 清零抖动弹簧状态(死亡/掉线/换武器时防角度冻结)
 // ============================================================================
-void Run_CreateShake(int client, float amplitude, float duration)
+void Run_ShakeReset(int client)
 {
-    if (IsFakeClient(client))
-        return;
-
-    Handle bf = StartMessageOne("Shake", client);
-    if (bf == INVALID_HANDLE)
-        return;
-
-    BfWriteByte(bf, 0);            // 抖动类型: 开始
-    BfWriteFloat(bf, amplitude);   // 幅度(配置 runshake, 可为负用于短脉冲重置)
-    BfWriteFloat(bf, RUN_SHAKE_FREQ);
-    BfWriteFloat(bf, duration);    // 持续时间(秒)
-    EndMessage();
+    g_fRunShakeYaw[client] = 0.0;
+    g_fRunShakeYawVel[client] = 0.0;
+    g_fRunShakePitch[client] = 0.0;
+    g_fRunShakePitchVel[client] = 0.0;
+    g_bRunShakeSign[client] = false;
+    g_fRunShakeNext[client] = 0.0;
 }
 
 // ============================================================================
-// >> 停止屏幕抖动(奔跑结束立即消除残留, 防止时长尾巴)
+// >> 死亡/复活: 清零抖动弹簧(防止死亡瞬间积分停止导致角度冻结)
 // ============================================================================
-void Run_StopShake(int client)
+public void Run_EventPlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
-    if (IsFakeClient(client))
-        return;
+    int client = GetClientOfUserId(GetEventInt(event, "userid"));
+    if (client > 0 && client <= MaxClients)
+        Run_ShakeReset(client);
+}
 
-    Handle bf = StartMessageOne("Shake", client);
-    if (bf == INVALID_HANDLE)
-        return;
-
-    BfWriteByte(bf, 1);            // 抖动类型: 停止
-    BfWriteFloat(bf, 0.0);
-    BfWriteFloat(bf, 0.0);
-    BfWriteFloat(bf, 0.0);
-    EndMessage();
+public void Run_EventPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(GetEventInt(event, "userid"));
+    if (client > 0 && client <= MaxClients)
+        Run_ShakeReset(client);
 }
 
 // ============================================================================
@@ -478,10 +528,14 @@ void Run_Reset(int client)
     g_bRunning[client] = false;
     g_iRunStage[client] = RUN_STAGE_NONE;
     g_bRunFrame[client] = false;
-    g_bRunSpeedApplied[client] = false;
     g_iRunWeapon[client] = -1;
     g_fRunSwitch[client] = 0.0;
     g_fSpeedPressTime[client] = 0.0;
     g_bSpeedDown[client] = false;
     g_fRunShakeNext[client] = 0.0;
+    g_fRunShakeYaw[client] = 0.0;
+    g_fRunShakeYawVel[client] = 0.0;
+    g_fRunShakePitch[client] = 0.0;
+    g_fRunShakePitchVel[client] = 0.0;
+    g_bRunShakeSign[client] = false;
 }

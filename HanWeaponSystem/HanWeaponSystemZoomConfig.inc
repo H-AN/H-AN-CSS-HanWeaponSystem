@@ -312,22 +312,14 @@ void PrecacheZoomModels()
     {
         char model[PLATFORM_MAX_PATH];
         KvGetString(g_hZoomConfig, "zoommodel", model, sizeof(model), "");
+        NormalizePath(model);
         if (strlen(model) > 0)
-        {
-            if (PrecacheModel(model))
-            {
-                AddFileToDownloadsTable(model);
-            }
-        }
+            PrecacheModel(model);
 
         KvGetString(g_hZoomConfig, "sideaimmodel", model, sizeof(model), "");
+        NormalizePath(model);
         if (strlen(model) > 0)
-        {
-            if (PrecacheModel(model))
-            {
-                AddFileToDownloadsTable(model);
-            }
-        }
+            PrecacheModel(model);
     } while (KvGotoNextKey(g_hZoomConfig));
 
     KvRewind(g_hZoomConfig);
@@ -362,6 +354,7 @@ bool GetZoomConfigValue(int weaponEnt, const char[] key, char[] value, int value
         if (StrEqual(className, useClass, false))
         {
             KvGetString(g_hZoomConfig, key, value, valueLen, "");
+            NormalizePath(value);
             return (strlen(value) > 0);
         }
 

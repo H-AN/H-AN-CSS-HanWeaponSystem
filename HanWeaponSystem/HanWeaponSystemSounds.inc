@@ -35,6 +35,7 @@ void PlayWeaponSound(int client, const char[] weaponClassname, const char[] key)
     char soundPath[PLATFORM_MAX_PATH];
     KvRewind(kvEntry);
     KvGetString(kvEntry, key, soundPath, sizeof(soundPath), "");
+    NormalizePath(soundPath);
     if (strlen(soundPath) > 0)
     {
         EmitSoundToAll(soundPath, client, SNDCHAN_WEAPON, SNDLEVEL_ROCKET);

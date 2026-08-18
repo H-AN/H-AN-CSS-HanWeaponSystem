@@ -205,7 +205,9 @@ bool GetCustomSoundPrefixct(const char[] classname, char[] prefix, int maxlen)
     Handle kvWeapon = INVALID_HANDLE;
     if (GetTrieValue(g_hWeaponTrie, classname, kvWeapon))
     {
-        return KvGetString(kvWeapon, "customsoundct", prefix, maxlen, "") && strlen(prefix) > 0;
+        KvGetString(kvWeapon, "customsoundct", prefix, maxlen, "");
+        NormalizePath(prefix);
+        return strlen(prefix) > 0;
     }
     return false;
 }
@@ -215,7 +217,9 @@ bool GetCustomSoundPrefixt(const char[] classname, char[] prefix, int maxlen)
     Handle kvWeapon = INVALID_HANDLE;
     if (GetTrieValue(g_hWeaponTrie, classname, kvWeapon))
     {
-        return KvGetString(kvWeapon, "customsoundt", prefix, maxlen, "") && strlen(prefix) > 0;
+        KvGetString(kvWeapon, "customsoundt", prefix, maxlen, "");
+        NormalizePath(prefix);
+        return strlen(prefix) > 0;
     }
     return false;
 }
@@ -320,41 +324,24 @@ void PrecacheWeaponResources(Handle kvRoot)
         KvGetString(kvRoot, "SwitchSound", switchSound, sizeof(switchSound), "");
         KvGetString(kvRoot, "reloadsound", reloadSoundStr, sizeof(reloadSoundStr), "");
 
+        NormalizePath(vmodel);
+        NormalizePath(wmodel);
+        NormalizePath(fireSound);
+        NormalizePath(switchSound);
+        NormalizePath(reloadSoundStr);
+
         if (strlen(vmodel) > 0)
-        {
-            if (PrecacheModel(vmodel))
-            {
-                AddFileToDownloadsTable(vmodel);
-            }
-        }
+            PrecacheModel(vmodel);
 
         if (strlen(wmodel) > 0)
-        {
-            if (PrecacheModel(wmodel))
-            {
-                AddFileToDownloadsTable(wmodel);
-            }
-        }
-
-        char soundPath[PLATFORM_MAX_PATH];
+            PrecacheModel(wmodel);
 
         if (strlen(fireSound) > 0)
-        {
-            if (PrecacheSound(fireSound))
-            {
-                Format(soundPath, sizeof(soundPath), "sound/%s", fireSound);
-                AddFileToDownloadsTable(soundPath);
-            }
-        }
+            PrecacheSound(fireSound);
 
         if (strlen(switchSound) > 0)
-        {
-            if (PrecacheSound(switchSound))
-            {
-                Format(soundPath, sizeof(soundPath), "sound/%s", switchSound);
-                AddFileToDownloadsTable(soundPath);
-            }
-        }
+            PrecacheSound(switchSound);
+
         if (strlen(reloadSoundStr) > 0)
         {
             char parts[8][64];
@@ -366,18 +353,15 @@ void PrecacheWeaponResources(Handle kvRoot)
                 if (ExplodeString(parts[i], ":", pair, sizeof(pair), sizeof(pair[])) == 2)
                 {
                     TrimString(pair[1]);
-
-                    if (PrecacheSound(pair[1]))
-                    {
-                        Format(soundPath, sizeof(soundPath), "sound/%s", pair[1]);
-                        AddFileToDownloadsTable(soundPath);
-                    }
+                    NormalizePath(pair[1]);
+                    PrecacheSound(pair[1]);
                 }
             }
         }
 
         char customPrefixt[64];
         KvGetString(kvRoot, "customsoundt", customPrefixt, sizeof(customPrefixt), "");
+        NormalizePath(customPrefixt);
         if (strlen(customPrefixt) > 0)
         {
             static const char soundNames[][] = {
@@ -397,16 +381,13 @@ void PrecacheWeaponResources(Handle kvRoot)
                 char fullPath[PLATFORM_MAX_PATH];
                 Format(fullPath, sizeof(fullPath), "weapons/%s/%s_%s", customPrefixt, customPrefixt, soundNames[i]);
 
-                if (PrecacheSound(fullPath, true))
-                {
-                    Format(soundPath, sizeof(soundPath), "sound/%s", fullPath);
-                    AddFileToDownloadsTable(soundPath);
-                }
+                PrecacheSound(fullPath, true);
             }
         }
 
         char customPrefixct[64];
         KvGetString(kvRoot, "customsoundct", customPrefixct, sizeof(customPrefixct), "");
+        NormalizePath(customPrefixct);
         if (strlen(customPrefixct) > 0)
         {
             static const char soundNames[][] = {
@@ -426,11 +407,7 @@ void PrecacheWeaponResources(Handle kvRoot)
                 char fullPath[PLATFORM_MAX_PATH];
                 Format(fullPath, sizeof(fullPath), "weapons/%s/%s_%s", customPrefixct, customPrefixct, soundNames[i]);
 
-                if (PrecacheSound(fullPath, true))
-                {
-                    Format(soundPath, sizeof(soundPath), "sound/%s", fullPath);
-                    AddFileToDownloadsTable(soundPath);
-                }
+                PrecacheSound(fullPath, true);
             }
         }
 
@@ -487,6 +464,18 @@ public Action Event_PlayerDeathPre(Handle event, const char[] name, bool dontBro
 }
 
 // ============================================================================
+// >> 路径统一: 反斜杠转正斜杠(引擎路径只接受 /, 用户填 \ 也兼容)
+// ============================================================================
+void NormalizePath(char[] path)
+{
+    for (int i = 0; i < strlen(path); i++)
+    {
+        if (path[i] == '\\')
+            path[i] = '/';
+    }
+}
+
+// ============================================================================
 // >> 通过配置获取武器值
 // ============================================================================
 bool GetWeaponConfigValue(int weaponEnt, const char[] key, char[] value, int valueLen)
@@ -515,6 +504,7 @@ bool GetWeaponConfigValue(int weaponEnt, const char[] key, char[] value, int val
         if (StrEqual(className, useClass, false))
         {
             KvGetString(g_hWeaponConfig, key, value, valueLen, "");
+            NormalizePath(value);
             return (strlen(value) > 0);
         }
 

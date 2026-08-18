@@ -61,7 +61,8 @@ void WriteDefaultRunConfig(const char[] path)
     WriteFileLine(file, "// 字段说明：");
     WriteFileLine(file, "// useclassname   对应主配置的武器 useclassname(自动复制)");
     WriteFileLine(file, "// run            1=启用奔跑 0=关闭");
-    WriteFileLine(file, "// runspeed       奔跑移速倍率(如 1.5); 缺省/0=不加速");
+    WriteFileLine(file, "// runspeed       奔跑启动推力(每帧面向方向叠加的速度增量, 默认 50); 缺省/0=不加力");
+    WriteFileLine(file, "// runmaxspeed    奔跑总体速度上限(默认走路约250, 500≈2倍速, 达到后保持不再加力)");
     WriteFileLine(file, "// runseq         奔跑动作1动画序列号(动作2自动=+1)");
     WriteFileLine(file, "// runtime        奔跑动作时长(帧, 30fps)");
     WriteFileLine(file, "// runin          可选 Idle->奔跑过渡动作序列号");
@@ -220,7 +221,8 @@ void SyncRunConfig()
                 WriteFileLine(outFile, "        \"useclassname\"    \"%s\"", use);
                 WriteFileLine(outFile, "        \"run\"             \"0\"");
                 WriteFileLine(outFile, "        // 奔跑参数(仅 run 1 时生效):");
-                WriteFileLine(outFile, "        // \"runspeed\"        \"1.5\"");
+                WriteFileLine(outFile, "        // \"runspeed\"        \"50.0\"");
+                WriteFileLine(outFile, "        // \"runmaxspeed\"     \"500.0\"");
                 WriteFileLine(outFile, "        // \"runseq\"          \"5\"");
                 WriteFileLine(outFile, "        // \"runtime\"         \"15\"");
                 WriteFileLine(outFile, "        // \"runin\"           \"4\"");

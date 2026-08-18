@@ -265,7 +265,7 @@ void ReadInspectConfig()
 }
 
 // ============================================================================
-// >> 预缓存所有检视音效(逗号分隔多路径逐一预缓存 + 加下载表)
+// >> 预缓存所有检视音效(逗号分隔多路径逐一预缓存; 下载统一由 Download.cfg 管理)
 // ============================================================================
 void PrecacheInspectSounds()
 {
@@ -292,12 +292,8 @@ void PrecacheInspectSounds()
             if (strlen(parts[i]) == 0)
                 continue;
 
-            if (PrecacheSound(parts[i]))
-            {
-                char download[PLATFORM_MAX_PATH];
-                Format(download, sizeof(download), "sound/%s", parts[i]);
-                AddFileToDownloadsTable(download);
-            }
+            NormalizePath(parts[i]);
+            PrecacheSound(parts[i]);
         }
 
     } while (KvGotoNextKey(g_hInspectConfig));
@@ -334,6 +330,7 @@ bool GetInspectConfigValue(int weaponEnt, const char[] key, char[] value, int va
         if (StrEqual(className, useClass, false))
         {
             KvGetString(g_hInspectConfig, key, value, valueLen, "");
+            NormalizePath(value);
             return (strlen(value) > 0);
         }
 

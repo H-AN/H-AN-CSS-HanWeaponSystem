@@ -27,8 +27,7 @@ void Zoom_OnPluginStart()
 
 void Zoom_OnMapStart()
 {
-    AddFileToDownloadsTable("materials/zoom/zoomin.vmt");
-    AddFileToDownloadsTable("materials/zoom/zoomin.vtf");
+    // 仅预缓存不下载(下载统一由 Download.cfg 管理, 默认已含这两行)
     PrecacheDecal("materials/zoom/zoomin.vmt");
     PrecacheDecal("materials/zoom/zoomin.vtf");
 
