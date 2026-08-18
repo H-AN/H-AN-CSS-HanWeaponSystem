@@ -1,4 +1,4 @@
-#define VERSION "6.6"
+#define VERSION "6.7"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -23,9 +23,11 @@ bool g_bVM0BlockHooked[MAXPLAYERS + 1];     // 0号VM 传输屏蔽钩子是否�
 float g_fModifyNextAttack[MAXPLAYERS + 1];
 bool g_bPressingAttack2[MAXPLAYERS + 1];
 bool g_bWeaponAutoFire[MAXPLAYERS + 1];
+bool g_bGrenadePullPrev[MAXPLAYERS + 1];   // 手雷拉保险音上升沿记录(持自定义雷+IN_ATTACK按下)
 
 int offsCollision;
 int g_FakeModels[2048];
+char g_GrenadePrefix[2048][64]; // 手雷投射物 → 自定义音效文件夹前缀(SpawnPost记录, 投射物音效同名文件替换用; 空=非自定义雷)
 
 // ============================================================================
 // >> 机瞄全局

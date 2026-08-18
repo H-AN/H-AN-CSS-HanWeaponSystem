@@ -29,7 +29,7 @@ void ViewModel_OnPluginStart()
 }
 
 // ============================================================================
-// >> 实体创建(追踪 predicted_viewmodel / 霰弹枪换弹钩子)
+// >> 实体创建(追踪 predicted_viewmodel / 霰弹枪换弹钩子 / 手雷投射物)
 // ============================================================================
 public void OnEntityCreated(int entity, const char[] classname)
 {
@@ -41,6 +41,13 @@ public void OnEntityCreated(int entity, const char[] classname)
     if (HasEntProp(entity, Prop_Send, "m_reloadState"))
     {
         SDKHook(entity, SDKHook_ReloadPost, Hook_OnReloadPost);
+    }
+
+    // 手雷投射物(hegrenade/flashbang/smokegrenade 等 *_projectile): 挂 SpawnPost 反查自定义手雷飞行模型
+    int len = strlen(classname);
+    if (len >= 11 && StrContains(classname, "_projectile") == len - 11)
+    {
+        SDKHook(entity, SDKHook_SpawnPost, GrenadeProjectileSpawned);
     }
 }
 
@@ -117,6 +124,11 @@ public void OnPostThinkPost(int client)
         IsCustom[client] = false;
         IsCustom2[client] = false;
         g_bVM0BlockHooked[client] = false;
+
+        // 摘除 0号VM 传输屏蔽钩子(无武器时保险, 防死亡/换武器后钩子残留)
+        if (IsValidEntity(ClientVM[client][0]))
+            SDKUnhook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
+
         OldWeapon[client] = WeaponIndex;
         OldSequence[client] = Sequence;
         OldCycle[client] = Cycle;
@@ -342,6 +354,11 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
     IsCustom[client] = false;
     IsCustom2[client] = false;
     g_bVM0BlockHooked[client] = false;
+
+    // 摘除 0号VM 传输屏蔽钩子: 手雷死亡时武器实体释放索引被复活武器复用, 换武器分支可能跳过,
+    // 钩子残留会导致复活后手枪/默认武器隐身, 必须在死亡清理里显式摘除
+    if (IsValidEntity(ClientVM[client][0]))
+        SDKUnhook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
 
     int EntEffects = GetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects");
     EntEffects |= EF_NODRAW;

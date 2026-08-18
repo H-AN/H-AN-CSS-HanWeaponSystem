@@ -73,6 +73,7 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// reloadsound:   兜底换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒(默认30); 自动随reloadspeed对齐)。适用于: 未配空仓/战术的武器所有换弹; 已配单侧空仓/战术的武器另一侧换弹(走引擎普通换弹)");
     WriteFileLine(file, "// usedroppedmodel: 1=掉落时使用假W模型 0=直接改世界模型");
     WriteFileLine(file, "// armfix:        手臂修复 1=每帧对1号VM执行 m_hWeapon 自赋值修复左手模 0/缺省=不管");
+    WriteFileLine(file, "// grenadescale:  手雷类武器飞行模型缩放(如 2.0 放大 0.5 缩小; 0/缺省=不缩放; 仅手雷实体生效其他武器无效)");
     WriteFileLine(file, "// 机瞄/侧瞄请到 HanWeaponZoomData.cfg 中配置");
     WriteFileLine(file, "// 检视请到 HanWeaponInspectData.cfg 中配置");
     WriteFileLine(file, "// 奔跑请到 HanWeaponRunData.cfg 中配置");
@@ -403,6 +404,27 @@ void PrecacheWeaponResources(Handle kvRoot)
 
                 PrecacheSound(fullPath, true);
             }
+
+            // 手雷音效同名文件(弹跳/爆炸/拉保险, 与默认路径一致的文件名)
+            static const char grenadeSoundNames[][] = {
+                "he_bounce-1.wav",
+                "explode3.wav",
+                "explode4.wav",
+                "explode5.wav",
+                "grenade_hit1.wav",
+                "flashbang_explode1.wav",
+                "flashbang_explode2.wav",
+                "sg_explode.wav",
+                "pinpull.wav"
+            };
+
+            for (int i = 0; i < sizeof(grenadeSoundNames); i++)
+            {
+                char fullPath[PLATFORM_MAX_PATH];
+                Format(fullPath, sizeof(fullPath), "weapons/%s/%s", customPrefixt, grenadeSoundNames[i]);
+
+                PrecacheSound(fullPath, true);
+            }
         }
 
         char customPrefixct[64];
@@ -426,6 +448,27 @@ void PrecacheWeaponResources(Handle kvRoot)
             {
                 char fullPath[PLATFORM_MAX_PATH];
                 Format(fullPath, sizeof(fullPath), "weapons/%s/%s_%s", customPrefixct, customPrefixct, soundNames[i]);
+
+                PrecacheSound(fullPath, true);
+            }
+
+            // 手雷音效同名文件(弹跳/爆炸/拉保险, 与默认路径一致的文件名)
+            static const char grenadeSoundNamesct[][] = {
+                "he_bounce-1.wav",
+                "explode3.wav",
+                "explode4.wav",
+                "explode5.wav",
+                "grenade_hit1.wav",
+                "flashbang_explode1.wav",
+                "flashbang_explode2.wav",
+                "sg_explode.wav",
+                "pinpull.wav"
+            };
+
+            for (int i = 0; i < sizeof(grenadeSoundNamesct); i++)
+            {
+                char fullPath[PLATFORM_MAX_PATH];
+                Format(fullPath, sizeof(fullPath), "weapons/%s/%s", customPrefixct, grenadeSoundNamesct[i]);
 
                 PrecacheSound(fullPath, true);
             }

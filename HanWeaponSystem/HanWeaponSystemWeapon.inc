@@ -272,3 +272,79 @@ public Action HideFakeWModel(int client, int weapon)
 
     return Plugin_Continue;
 }
+
+// ============================================================================
+// >> 手雷投射物世界模型(自定义手雷飞行模型 + grenadescale 缩放 + 爆炸音效引用)
+// ============================================================================
+public void GrenadeProjectileSpawned(int entity)
+{
+    // 先清前缀(原版/未配自定义的手雷 → 空, 音效不替换)
+    g_GrenadePrefix[entity][0] = '\0';
+
+    int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+    if (owner <= 0 || owner > MaxClients || !IsClientInGame(owner))
+        return;
+
+    // 由投射物类名派生基础武器类型: hegrenade_projectile -> hegrenade -> weapon_hegrenade
+    char projectileClass[64];
+    GetEntityClassname(entity, projectileClass, sizeof(projectileClass));
+
+    int len = strlen(projectileClass);
+    if (len <= 11)
+        return;
+    projectileClass[len - 11] = '\0';
+
+    char weaponBase[64];
+    Format(weaponBase, sizeof(weaponBase), "weapon_%s", projectileClass);
+
+    // 遍历玩家武器, 反查配置 classname == 基础武器类型 的自定义手雷
+    for (int i = 0; i < 48; i++)
+    {
+        int weapon = GetEntPropEnt(owner, Prop_Send, "m_hMyWeapons", i);
+        if (weapon <= MaxClients || !IsValidEntity(weapon))
+            continue;
+
+        char cfgClass[64];
+        if (!GetWeaponConfigValue(weapon, "classname", cfgClass, sizeof(cfgClass)))
+            continue;
+
+        if (StrEqual(cfgClass, weaponBase, false))
+        {
+            // 记录音效文件夹前缀(customsoundt/ct): 投射物弹跳/爆炸音 同名文件替换用,
+            // 提前存好, 投掷者中途死亡也能正常替换
+            char weaponClass[64];
+            GetEdictClassname(weapon, weaponClass, sizeof(weaponClass));
+
+            char prefix[64];
+            if (GetClientTeam(owner) == CS_TEAM_CT)
+            {
+                if (GetCustomSoundPrefixct(weaponClass, prefix, sizeof(prefix)))
+                    strcopy(g_GrenadePrefix[entity], sizeof(g_GrenadePrefix[]), prefix);
+            }
+            else
+            {
+                if (GetCustomSoundPrefixt(weaponClass, prefix, sizeof(prefix)))
+                    strcopy(g_GrenadePrefix[entity], sizeof(g_GrenadePrefix[]), prefix);
+            }
+
+            char wmodel[PLATFORM_MAX_PATH];
+            if (GetWeaponConfigValue(weapon, "wmodel", wmodel, sizeof(wmodel)))
+            {
+                SetEntityModel(entity, wmodel);
+            }
+
+            char scaleStr[16];
+            if (GetWeaponConfigValue(weapon, "grenadescale", scaleStr, sizeof(scaleStr)))
+            {
+                float scale = StringToFloat(scaleStr);
+                if (scale > 0.0)
+                    SetEntPropFloat(entity, Prop_Send, "m_flModelScale", scale);
+            }
+
+            // 投掷音效(手雷不发射 Shotgun Shot TE, firesound 在此刻播放)
+            PlayWeaponSound(owner, weaponClass, "firesound");
+
+            break;
+        }
+    }
+}
