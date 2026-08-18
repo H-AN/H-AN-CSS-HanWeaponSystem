@@ -23,6 +23,20 @@
 // 检视音效最多支持逗号分隔的数量
 #define MAX_INSPECT_SOUNDS 8
 
+// 判断字符串是否全为数字(用于识别"帧号:路径"格式)
+bool IsNumericString(const char[] s)
+{
+    if (s[0] == '\0')
+        return false;
+
+    for (int i = 0; s[i] != '\0'; i++)
+    {
+        if (!IsCharNumeric(s[i]))
+            return false;
+    }
+    return true;
+}
+
 void Inspect_OnPluginStart()
 {
     RegConsoleCmd("sm_inspect", Cmd_Inspect, "检视当前武器");
@@ -155,6 +169,42 @@ void Inspect_StopSound(int client)
 }
 
 // ============================================================================
+// >> 调度检视帧音效(delay = 帧号 / 30, 同检视动画 30fps 基准)
+// ============================================================================
+void ScheduleInspectSound(int client, int weapon, int gen, int frame, const char[] path)
+{
+    DataPack dp;
+    CreateDataTimer(frame / 30.0, Timer_PlayInspectSound, dp);
+    dp.WriteCell(client);
+    dp.WriteCell(EntIndexToEntRef(weapon));
+    dp.WriteCell(gen);
+    dp.WriteString(path);
+}
+
+public Action Timer_PlayInspectSound(Handle timer, DataPack dp)
+{
+    dp.Reset();
+    int client = dp.ReadCell();
+    int weaponRef = dp.ReadCell();
+    int gen = dp.ReadCell();
+    char path[PLATFORM_MAX_PATH];
+    dp.ReadString(path, sizeof(path));
+
+    // 检视已结束/切枪/重播(代次不符) → 剩余帧音效不再播放
+    if (client < 1 || client > MaxClients || !IsClientInGame(client))
+        return Plugin_Handled;
+    if (!g_bInspecting[client] || gen != g_iInspectSoundGen[client])
+        return Plugin_Handled;
+
+    int weapon = EntRefToEntIndex(weaponRef);
+    if (weapon == -1 || g_iInspectWeapon[client] != weapon)
+        return Plugin_Handled;
+
+    EmitSoundToClient(client, path, client, SNDCHAN_INSPECT, SNDLEVEL_NORMAL);
+    return Plugin_Handled;
+}
+
+// ============================================================================
 // >> 开始检视
 // ============================================================================
 void Inspect_Start(int client)
@@ -184,8 +234,10 @@ void Inspect_Start(int client)
     g_iInspectWeapon[client] = weapon;
     g_fInspectEnd[client] = GetGameTime() + dur;
     g_fInspectBlock[client] = GetGameTime() + 0.5;
+    g_iInspectSoundGen[client]++;
 
-    // 检视音效: 缺省不填不播放; 多路径逗号分隔随机选一个; 只自己听得见
+    // 检视音效: 缺省不填不播放; 纯路径条目(无帧号)逗号分隔随机选一个检视一开始播;
+    // 带"帧号:路径"条目按帧号定时多段播放(同换弹逻辑, 30fps 换算秒); 只自己听得见
     char soundStr[512];
     if (GetInspectConfigValue(weapon, "inspectsound", soundStr, sizeof(soundStr)))
     {
@@ -204,11 +256,35 @@ void Inspect_Start(int client)
             }
         }
 
-        if (validCount > 0)
+        int gen = g_iInspectSoundGen[client];
+
+        // 纯路径条目(开场随机播一个)与帧号条目(定时多段)分开处理
+        int plain[MAX_INSPECT_SOUNDS];
+        int plainCount = 0;
+        for (int i = 0; i < validCount; i++)
         {
-            int pick = valid[GetRandomInt(0, validCount - 1)];
+            char pair[2][PLATFORM_MAX_PATH];
+            if (ExplodeString(parts[valid[i]], ":", pair, sizeof(pair), sizeof(pair[])) == 2 && IsNumericString(pair[0]))
+            {
+                int frameNum = StringToInt(pair[0]);
+                char path[PLATFORM_MAX_PATH];
+                strcopy(path, sizeof(path), pair[1]);
+                NormalizePath(path);
+                ScheduleInspectSound(client, weapon, gen, frameNum, path);
+            }
+            else
+            {
+                plain[plainCount] = valid[i];
+                plainCount++;
+            }
+        }
+
+        if (plainCount > 0)
+        {
+            int pick = plain[GetRandomInt(0, plainCount - 1)];
             strcopy(g_sInspectSound[client], sizeof(g_sInspectSound[]), parts[pick]);
-            EmitSoundToClient(client, parts[pick], client, SNDCHAN_INSPECT, SNDLEVEL_NORMAL);
+            NormalizePath(g_sInspectSound[client]);
+            EmitSoundToClient(client, g_sInspectSound[client], client, SNDCHAN_INSPECT, SNDLEVEL_NORMAL);
         }
     }
 

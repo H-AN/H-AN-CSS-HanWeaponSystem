@@ -209,6 +209,14 @@ public void OnPostThinkPost(int client)
             SDKUnhook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
             g_bVM0BlockHooked[client] = false;
 
+            // 恢复 VM0 可见(非自定义武器必须显示, 清死亡/切枪残留的隐藏状态)
+            if (IsValidEntity(ClientVM[client][0]))
+            {
+                EntEffects = GetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects");
+                EntEffects &= ~EF_NODRAW;
+                SetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects", EntEffects);
+            }
+
             IsCustom[client] = false;
             IsCustom2[client] = false;
         }
@@ -338,6 +346,14 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
     int EntEffects = GetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects");
     EntEffects |= EF_NODRAW;
     SetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects", EntEffects);
+
+    // 清 VM0 隐藏残留(死亡时若正持自定义武器 VM0 被隐藏, 复活发默认武器后可避免透明枪)
+    if (IsValidEntity(ClientVM[client][0]))
+    {
+        EntEffects = GetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects");
+        EntEffects &= ~EF_NODRAW;
+        SetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects", EntEffects);
+    }
 }
 
 // 复活显示v模型

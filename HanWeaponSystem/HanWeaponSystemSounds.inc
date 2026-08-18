@@ -35,12 +35,33 @@ void PlayWeaponSound(int client, const char[] weaponClassname, const char[] key)
     char soundPath[PLATFORM_MAX_PATH];
     KvRewind(kvEntry);
     KvGetString(kvEntry, key, soundPath, sizeof(soundPath), "");
-    NormalizePath(soundPath);
-    if (strlen(soundPath) > 0)
+    if (strlen(soundPath) == 0)
+        return;
+
+    // 多路径逗号分隔 → 每次随机选一个播放
+    char parts[8][PLATFORM_MAX_PATH];
+    int count = ExplodeString(soundPath, ",", parts, sizeof(parts), sizeof(parts[]));
+
+    int valid[8];
+    int validCount = 0;
+    for (int i = 0; i < count; i++)
     {
-        EmitSoundToAll(soundPath, client, SNDCHAN_WEAPON, SNDLEVEL_ROCKET);
-        EmitSoundToAll(soundPath, client, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
+        TrimString(parts[i]);
+        if (strlen(parts[i]) > 0)
+        {
+            valid[validCount] = i;
+            validCount++;
+        }
     }
+
+    if (validCount == 0)
+        return;
+
+    strcopy(soundPath, sizeof(soundPath), parts[valid[GetRandomInt(0, validCount - 1)]]);
+    NormalizePath(soundPath);
+
+    EmitSoundToAll(soundPath, client, SNDCHAN_WEAPON, SNDLEVEL_ROCKET);
+    EmitSoundToAll(soundPath, client, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
 }
 
 // ============================================================================
@@ -129,28 +150,76 @@ public void Hook_WeaponReloadPost(int weapon, bool bSuccessful)
 
         if (ammo < maxAmmo && magazine > 0)
         {
-            char reloadStr[256];
-            if (GetWeaponConfigValue(weapon, "reloadsound", reloadStr, sizeof(reloadStr)))
-            {
-                char sounds[8][64];
-                int count = ExplodeString(reloadStr, ",", sounds, sizeof(sounds), sizeof(sounds[]));
+            char soundStr[256];
+            if (SelectReloadSound(weapon, ammo, soundStr, sizeof(soundStr)))
+                ScheduleReloadSounds(owner, weapon, soundStr);
+        }
+    }
+}
 
-                for (int i = 0; i < count; i++)
-                {
-                    char pair[2][64];
-                    if (ExplodeString(sounds[i], ":", pair, sizeof(pair), sizeof(pair[])) == 2)
-                    {
-                        float delay = StringToFloat(pair[0]);
-                        char soundPath[PLATFORM_MAX_PATH];
-                        strcopy(soundPath, sizeof(soundPath), pair[1]);
+// ============================================================================
+// >> 选择换弹音效来源(按弹匣状态匹配 空仓/战术/兜底)
+//    空仓(clip==0): 该武器启用空仓换弹 → 播 emptyreloadsound(没填则不播); 否则兜底主配置 reloadsound
+//    战术(clip>0):  该武器启用战术换弹 → 播 tacticalreloadsound(没填则不播); 否则兜底主配置 reloadsound
+// ============================================================================
+bool SelectReloadSound(int weapon, int clip, char[] out, int outLen)
+{
+    if (clip == 0)
+    {
+        if (EmptyReload_IsEmptyEnabled(weapon))
+        {
+            GetEmptyReloadConfigValue(weapon, "emptyreloadsound", out, outLen);
+            return (strlen(out) > 0);
+        }
+        return GetWeaponConfigValue(weapon, "reloadsound", out, outLen);
+    }
 
-                        DataPack dp;
-                        CreateDataTimer(delay, Timer_PlayReloadSound, dp);
-                        dp.WriteCell(owner);
-                        dp.WriteString(soundPath);
-                    }
-                }
-            }
+    if (EmptyReload_IsTacticalEnabled(weapon))
+    {
+        GetEmptyReloadConfigValue(weapon, "tacticalreloadsound", out, outLen);
+        return (strlen(out) > 0);
+    }
+    return GetWeaponConfigValue(weapon, "reloadsound", out, outLen);
+}
+
+// ============================================================================
+// >> 调度换弹音效(帧号:路径,逗号分隔; delay = 帧号 × reloadspeed / reloadfps)
+// ============================================================================
+void ScheduleReloadSounds(int owner, int weapon, const char[] soundStr)
+{
+    char sounds[8][64];
+    int count = ExplodeString(soundStr, ",", sounds, sizeof(sounds), sizeof(sounds[]));
+
+    // 帧号 → 秒: delay = 帧号 × reloadspeed / reloadfps (reloadfps 默认 30, 见空仓换弹配置)
+    float reloadSpeed = 1.0;
+    char reloadSpeedStr[16];
+    if (GetWeaponConfigValue(weapon, "reloadspeed", reloadSpeedStr, sizeof(reloadSpeedStr)))
+    {
+        float v = StringToFloat(reloadSpeedStr);
+        if (v > 0.0)
+            reloadSpeed = v;
+    }
+
+    int reloadFps = EmptyReload_GetInt(weapon, "reloadfps", 30);
+    if (reloadFps <= 0)
+        reloadFps = 30;
+
+    for (int i = 0; i < count; i++)
+    {
+        char pair[2][64];
+        if (ExplodeString(sounds[i], ":", pair, sizeof(pair), sizeof(pair[])) == 2)
+        {
+            int frame = StringToInt(pair[0]);
+            float delay = (float(frame) * reloadSpeed) / float(reloadFps);
+            char soundPath[PLATFORM_MAX_PATH];
+            strcopy(soundPath, sizeof(soundPath), pair[1]);
+            NormalizePath(soundPath);
+
+            DataPack dp;
+            CreateDataTimer(delay, Timer_PlayReloadSound, dp);
+            dp.WriteCell(owner);
+            dp.WriteCell(EntIndexToEntRef(weapon));
+            dp.WriteString(soundPath);
         }
     }
 }
@@ -159,13 +228,19 @@ public Action Timer_PlayReloadSound(Handle timer, DataPack dp)
 {
     dp.Reset();
     int owner = dp.ReadCell();
+    int weaponRef = dp.ReadCell();
     char soundPath[PLATFORM_MAX_PATH];
     dp.ReadString(soundPath, sizeof(soundPath));
 
-    if (IsClientInGame(owner))
-    {
-        EmitSoundToAll(soundPath, owner, SNDCHAN_WEAPON, SNDLEVEL_ROCKET);
-        EmitSoundToAll(soundPath, owner, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
-    }
+    if (!IsClientInGame(owner))
+        return Plugin_Handled;
+
+    // 换弹被打断/切枪: 武器不在手上则不再播放剩余音效(无需 kill timer, 零管理开销)
+    int weapon = EntRefToEntIndex(weaponRef);
+    if (weapon == -1 || GetEntPropEnt(owner, Prop_Send, "m_hActiveWeapon") != weapon)
+        return Plugin_Handled;
+
+    EmitSoundToAll(soundPath, owner, SNDCHAN_WEAPON, SNDLEVEL_ROCKET);
+    EmitSoundToAll(soundPath, owner, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
     return Plugin_Handled;
 }

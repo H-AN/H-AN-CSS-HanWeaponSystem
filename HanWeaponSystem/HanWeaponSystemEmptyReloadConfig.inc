@@ -19,6 +19,7 @@ void EmptyReloadConfig_OnPluginStart()
     InitEmptyReloadConfigIfNeeded();
     SyncEmptyReloadConfig();
     ReadEmptyReloadConfig();
+    PrecacheEmptyReloadSounds();
 }
 
 void EmptyReloadConfig_OnMapStart()
@@ -26,6 +27,7 @@ void EmptyReloadConfig_OnMapStart()
     InitEmptyReloadConfigIfNeeded();
     SyncEmptyReloadConfig();
     ReadEmptyReloadConfig();
+    PrecacheEmptyReloadSounds();
 }
 
 // ============================================================================
@@ -64,11 +66,13 @@ void WriteDefaultEmptyReloadConfig(const char[] path)
     WriteFileLine(file, "// emptyreloadseq   空仓换弹动画序列号(弹匣打空时)");
     WriteFileLine(file, "// emptyreloadseq2  空仓换弹·消音器变体序列号(无消音器武器不填)");
     WriteFileLine(file, "// emptyreloadtime  空仓换弹动画时长(帧, 按fps换算秒)");
+    WriteFileLine(file, "// emptyreloadsound 空仓换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放空仓换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒; 自动随reloadspeed对齐; 不填则不播)");
     WriteFileLine(file, "// reloadfps        换弹动画帧率(默认30, 动画帧率不同的武器按需改24等)");
     WriteFileLine(file, "// tacticalreload   1=启用战术换弹 0=关闭");
     WriteFileLine(file, "// reloadseq        战术换弹动画序列号(弹匣还有子弹时)");
     WriteFileLine(file, "// reloadseq2       战术换弹·消音器变体序列号(无消音器武器不填)");
     WriteFileLine(file, "// reloadtime       战术换弹动画时长(帧, 按fps换算秒)");
+    WriteFileLine(file, "// tacticalreloadsound 战术换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放战术换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒; 自动随reloadspeed对齐; 不填则不播)");
     WriteFileLine(file, "\"HanWeaponSystem\"");
     WriteFileLine(file, "{");
     WriteFileLine(file, "}");
@@ -117,42 +121,46 @@ void SyncEmptyReloadConfig()
     }
     KvRewind(g_hWeaponConfig);
 
-    // 找出空仓换弹配置中缺失的键
+    // 逐行扫描配置文件中的武器段名(不依赖KeyValues解析, 防止格式异常导致无限追加)
+    ArrayList existingSections = new ArrayList(64);
+    ScanEmptyReloadSections(cfgFile, existingSections);
+
+    // 校验配置文件格式是否完整(KeyValues解析到的段数 < 实际存在的段数 = 格式被破坏)
     Handle erKv = CreateKeyValues("HanWeaponSystem");
-    if (!FileToKeyValues(erKv, cfgFile))
+    int kvCount = 0;
+    if (FileToKeyValues(erKv, cfgFile))
     {
-        CloseHandle(erKv);
+        KvRewind(erKv);
+        if (KvGotoFirstSubKey(erKv))
+        {
+            do
+            {
+                kvCount++;
+            } while (KvGotoNextKey(erKv));
+        }
+    }
+    CloseHandle(erKv);
+
+    if (kvCount < existingSections.Length)
+    {
+        delete existingSections;
+        WarnEmptyReloadConfigBroken(cfgFile);
         return;
     }
 
+    // 找出缺失的武器键组
     ArrayList missingKeys = new ArrayList(64);
     ArrayList missingUse = new ArrayList(64);
 
     for (int i = 0; i < total; i++)
     {
-        KvRewind(erKv);
-        bool found = false;
-        if (KvGotoFirstSubKey(erKv))
-        {
-            do
-            {
-                char sec[64];
-                KvGetSectionName(erKv, sec, sizeof(sec));
-                if (StrEqual(sec, weaponKeys[i], false))
-                {
-                    found = true;
-                    break;
-                }
-            } while (KvGotoNextKey(erKv));
-        }
-
-        if (!found)
+        if (existingSections.FindString(weaponKeys[i]) == -1)
         {
             missingKeys.PushString(weaponKeys[i]);
             missingUse.PushString(weaponUse[i]);
         }
     }
-    CloseHandle(erKv);
+    delete existingSections;
 
     int synced = missingKeys.Length;
     if (synced == 0)
@@ -221,15 +229,17 @@ void SyncEmptyReloadConfig()
                 WriteFileLine(outFile, "        \"emptyreload\"     \"0\"");
                 WriteFileLine(outFile, "        // 空仓换弹参数(仅 emptyreload 1 时生效):");
                 WriteFileLine(outFile, "        // \"emptyreloadseq\"   \"5\"");
-                WriteFileLine(outFile, "        // \"emptyreloadseq2\"  \"6\"  (消音器变体)");
-                WriteFileLine(outFile, "        // \"emptyreloadtime\"  \"280\"  (动画时长, 帧)");
-                WriteFileLine(outFile, "        // \"reloadfps\"        \"30\"  (动画帧率, 按需改24)");
+                WriteFileLine(outFile, "        // \"emptyreloadseq2\"  \"6\"  // (消音器变体)");
+                WriteFileLine(outFile, "        // \"emptyreloadtime\"  \"280\"  // (动画时长, 帧)");
+                WriteFileLine(outFile, "        // \"emptyreloadsound\" \"0:weapons/ak47/magout.wav,45:weapons/ak47/insert.wav,70:weapons/ak47/bolt.wav\"  // (帧号:路径, HLMV看动画填; 不填则不播)");
+                WriteFileLine(outFile, "        // \"reloadfps\"        \"30\"  // (动画帧率, 按需改24)");
                 WriteFileLine(outFile, "        \"tacticalreload\"   \"0\"");
                 WriteFileLine(outFile, "        // 战术换弹参数(仅 tacticalreload 1 时生效):");
                 WriteFileLine(outFile, "        // \"reloadseq\"        \"7\"");
-                WriteFileLine(outFile, "        // \"reloadseq2\"       \"8\"  (消音器变体)");
-                WriteFileLine(outFile, "        // \"reloadtime\"       \"240\"  (动画时长, 帧)");
-                WriteFileLine(outFile, "        // \"reloadfps\"        \"30\"  (动画帧率, 按需改24)");
+                WriteFileLine(outFile, "        // \"reloadseq2\"       \"8\"  // (消音器变体)");
+                WriteFileLine(outFile, "        // \"reloadtime\"       \"240\"  // (动画时长, 帧)");
+                WriteFileLine(outFile, "        // \"tacticalreloadsound\" \"0:weapons/ak47/magout.wav,45:weapons/ak47/insert.wav,70:weapons/ak47/bolt.wav\"  // (帧号:路径, HLMV看动画填; 不填则不播)");
+                WriteFileLine(outFile, "        // \"reloadfps\"        \"30\"  // (动画帧率, 按需改24)");
                 WriteFileLine(outFile, "    }");
             }
         }
@@ -243,6 +253,60 @@ void SyncEmptyReloadConfig()
     delete lines;
 
     PrintToServer("[HWS] 空仓/战术换弹配置已同步 %d 个缺失武器", synced);
+}
+
+// ============================================================================
+// >> 逐行扫描配置文件中已存在的武器段名
+// ============================================================================
+int ScanEmptyReloadSections(const char[] cfgFile, Handle sections)
+{
+    int count = 0;
+
+    Handle file = OpenFile(cfgFile, "r");
+    if (file == INVALID_HANDLE)
+        return 0;
+
+    char line[512];
+    while (!IsEndOfFile(file) && ReadFileLine(file, line, sizeof(line)))
+    {
+        TrimString(line);
+
+        // 段头形如 "weapon_xxx"
+        if (line[0] == '"' && StrContains(line, "weapon_", false) == 1)
+        {
+            int endQuote = FindCharInString(line, '"', true);
+            if (endQuote > 1)
+            {
+                char name[64];
+                int nameLen = endQuote - 1;
+                if (nameLen >= sizeof(name))
+                    nameLen = sizeof(name) - 1;
+
+                strcopy(name, sizeof(name), line[1]);
+                name[nameLen] = '\0';
+
+                if (sections != INVALID_HANDLE)
+                {
+                    ArrayList sectionList = view_as<ArrayList>(sections);
+                    sectionList.PushString(name);
+                }
+                count++;
+            }
+        }
+    }
+    CloseHandle(file);
+
+    return count;
+}
+
+// ============================================================================
+// >> 提示空仓/战术换弹配置文件损坏
+// ============================================================================
+void WarnEmptyReloadConfigBroken(const char[] cfgFile)
+{
+    PrintToServer("[HWS] 警告: 空仓/战术换弹配置解析异常(文件可能已损坏), 已停止自动同步!");
+    PrintToServer("[HWS] 请检查 HanWeaponEmptyReloadData.cfg 格式(值后面不要跟括号注释, 请用 // 注释), 或删除该文件让插件重新生成默认配置");
+    LogError("[HWS] 空仓/战术换弹配置解析异常: %s", cfgFile);
 }
 
 // ============================================================================
@@ -264,10 +328,76 @@ void ReadEmptyReloadConfig()
     {
         CloseHandle(g_hEmptyReloadConfig);
         g_hEmptyReloadConfig = INVALID_HANDLE;
+        WarnEmptyReloadConfigBroken(cfgFile);
         return;
     }
 
     KvRewind(g_hEmptyReloadConfig);
+
+    // 校验配置是否解析完整, 防止配置损坏导致静默失效
+    int kvCount = 0;
+    KvRewind(g_hEmptyReloadConfig);
+    if (KvGotoFirstSubKey(g_hEmptyReloadConfig))
+    {
+        do
+        {
+            kvCount++;
+        } while (KvGotoNextKey(g_hEmptyReloadConfig));
+    }
+    KvRewind(g_hEmptyReloadConfig);
+
+    if (kvCount < ScanEmptyReloadSections(cfgFile, INVALID_HANDLE))
+    {
+        WarnEmptyReloadConfigBroken(cfgFile);
+    }
+}
+
+// ============================================================================
+// >> 预缓存空仓/战术换弹音效(emptyreloadsound/tacticalreloadsound)
+// ============================================================================
+void PrecacheEmptyReloadSounds()
+{
+    if (g_hEmptyReloadConfig == INVALID_HANDLE)
+        return;
+
+    KvRewind(g_hEmptyReloadConfig);
+    if (!KvGotoFirstSubKey(g_hEmptyReloadConfig))
+        return;
+
+    do
+    {
+        char soundStr[256];
+        KvGetString(g_hEmptyReloadConfig, "emptyreloadsound", soundStr, sizeof(soundStr), "");
+        PrecacheReloadSoundList(soundStr);
+
+        KvGetString(g_hEmptyReloadConfig, "tacticalreloadsound", soundStr, sizeof(soundStr), "");
+        PrecacheReloadSoundList(soundStr);
+    } while (KvGotoNextKey(g_hEmptyReloadConfig));
+
+    KvRewind(g_hEmptyReloadConfig);
+}
+
+// ============================================================================
+// >> 拆分并预缓存一组换弹音效("帧号:路径,帧号:路径")
+// ============================================================================
+void PrecacheReloadSoundList(const char[] soundStr)
+{
+    if (strlen(soundStr) == 0)
+        return;
+
+    char parts[8][64];
+    int count = ExplodeString(soundStr, ",", parts, sizeof(parts), sizeof(parts[]));
+
+    for (int i = 0; i < count; i++)
+    {
+        char pair[2][64];
+        if (ExplodeString(parts[i], ":", pair, sizeof(pair), sizeof(pair[])) == 2)
+        {
+            TrimString(pair[1]);
+            NormalizePath(pair[1]);
+            PrecacheSound(pair[1]);
+        }
+    }
 }
 
 // ============================================================================

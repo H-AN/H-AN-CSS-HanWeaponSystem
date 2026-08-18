@@ -292,8 +292,17 @@ void PrecacheInspectSounds()
             if (strlen(parts[i]) == 0)
                 continue;
 
-            NormalizePath(parts[i]);
-            PrecacheSound(parts[i]);
+            char pair[2][PLATFORM_MAX_PATH];
+            if (ExplodeString(parts[i], ":", pair, sizeof(pair), sizeof(pair[])) == 2 && IsNumericString(pair[0]))
+            {
+                NormalizePath(pair[1]);
+                PrecacheSound(pair[1]);
+            }
+            else
+            {
+                NormalizePath(parts[i]);
+                PrecacheSound(parts[i]);
+            }
         }
 
     } while (KvGotoNextKey(g_hInspectConfig));

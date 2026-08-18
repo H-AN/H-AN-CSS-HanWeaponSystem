@@ -70,7 +70,7 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// maxammo:       弹夹容量(用于换弹音效播放判断)");
     WriteFileLine(file, "// killicon:      击杀图标");
     WriteFileLine(file, "// team:          可用队伍(all/ct/t/both等)");
-    WriteFileLine(file, "// reloadsound:   换弹音效路径(支持 0:路径,逗号分隔)");
+    WriteFileLine(file, "// reloadsound:   兜底换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒(默认30); 自动随reloadspeed对齐)。适用于: 未配空仓/战术的武器所有换弹; 已配单侧空仓/战术的武器另一侧换弹(走引擎普通换弹)");
     WriteFileLine(file, "// usedroppedmodel: 1=掉落时使用假W模型 0=直接改世界模型");
     WriteFileLine(file, "// armfix:        手臂修复 1=每帧对1号VM执行 m_hWeapon 自赋值修复左手模 0/缺省=不管");
     WriteFileLine(file, "// 机瞄/侧瞄请到 HanWeaponZoomData.cfg 中配置");
@@ -94,7 +94,7 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "        \"wmodel\"         \"models/w_custom/w_ak47.mdl\"");
     WriteFileLine(file, "        \"firesound\"      \"weapons/ak47/fire.wav\"");
     WriteFileLine(file, "        \"switchsound\"    \"weapons/ak47/draw.wav\"");
-    WriteFileLine(file, "        \"reloadsound\"    \"0:weapons/ak47/reload.wav\"");
+    WriteFileLine(file, "        \"reloadsound\"    \"0:weapons/ak47/reload.wav,45:weapons/ak47/insert.wav,70:weapons/ak47/bolt.wav\"");
     WriteFileLine(file, "    }");
     WriteFileLine(file, "}");
 
@@ -295,6 +295,26 @@ bool HasRightFireSpeed(int weapon)
 }
 
 // ============================================================================
+// >> 预缓存音效列表(多路径逗号分隔)
+// ============================================================================
+void PrecacheSoundList(const char[] soundStr)
+{
+    if (strlen(soundStr) == 0)
+        return;
+
+    char parts[8][PLATFORM_MAX_PATH];
+    int count = ExplodeString(soundStr, ",", parts, sizeof(parts), sizeof(parts[]));
+
+    for (int i = 0; i < count; i++)
+    {
+        TrimString(parts[i]);
+        NormalizePath(parts[i]);
+        if (strlen(parts[i]) > 0)
+            PrecacheSound(parts[i]);
+    }
+}
+
+// ============================================================================
 // >> 预缓存武器资源
 // ============================================================================
 void PrecacheWeaponResources(Handle kvRoot)
@@ -337,10 +357,10 @@ void PrecacheWeaponResources(Handle kvRoot)
             PrecacheModel(wmodel);
 
         if (strlen(fireSound) > 0)
-            PrecacheSound(fireSound);
+            PrecacheSoundList(fireSound);
 
         if (strlen(switchSound) > 0)
-            PrecacheSound(switchSound);
+            PrecacheSoundList(switchSound);
 
         if (strlen(reloadSoundStr) > 0)
         {

@@ -1,4 +1,4 @@
-#define VERSION "6.5"
+#define VERSION "6.6"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -54,6 +54,7 @@ float g_fInspectEnd[MAXPLAYERS + 1];        // 检视结束时间
 float g_fInspectBlock[MAXPLAYERS + 1];      // 检视触发防抖时间
 int g_iInspectRestart[MAXPLAYERS + 1];      // 重复检视重启标记(先切其他序列再切回强制重播)
 char g_sInspectSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH]; // 当前检视音效路径(用于停止/重播)
+int g_iInspectSoundGen[MAXPLAYERS + 1];  // 检视音效调度代次(每次检视递增, 防旧定时器串播)
 
 Handle g_ForwardClientInspect = INVALID_HANDLE;
 
