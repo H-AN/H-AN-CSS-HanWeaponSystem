@@ -198,6 +198,14 @@ void Run_TryStart(int client, int buttons, bool bReloading)
     if (weapon <= 0)
         return;
 
+    // 自定义动画中: 不可打断则不触发奔跑; 可打断则先结束自定义动画再判定
+    if (g_bCustomAnim[client])
+    {
+        if (!g_bCustomAnimInterruptable[client])
+            return;
+        CustomAnim_End(client);
+    }
+
     // 必须按住前进, 且无其他方向/跳跃/下蹲/开火键
     if (!(buttons & IN_FORWARD) || (buttons & IN_BACK) || (buttons & IN_MOVELEFT) || (buttons & IN_MOVERIGHT) ||
         (buttons & IN_JUMP) || (buttons & IN_DUCK) || (buttons & IN_ATTACK))

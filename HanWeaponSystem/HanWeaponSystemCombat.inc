@@ -109,6 +109,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
         bAutoFired = true;
     }
 
+    // 自定义动画中剔除 IN_RELOAD(禁止开始换弹, 防换弹逻辑/动画与自定义动画冲突)
+    bool bCustomChanged = CustomAnim_OnPlayerRunCmd(client, buttons);
+
     // 换弹速度检测
     static bool s_ClientIsReloading[MAXPLAYERS + 1];
     char sWeapon[64];
@@ -138,7 +141,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
     // 奔跑触发(前进按住时点按Shift); 奔跑中剔除IN_SPEED/禁止换弹时返回 Plugin_Changed 透传按键修改
     Action runRet = Run_OnPlayerRunCmd(client, buttons, bIsReloading);
-    if (runRet == Plugin_Changed || bAutoFired)
+    if (runRet == Plugin_Changed || bAutoFired || bCustomChanged)
     {
         return Plugin_Changed;
     }

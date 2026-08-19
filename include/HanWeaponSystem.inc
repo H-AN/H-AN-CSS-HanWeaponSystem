@@ -127,3 +127,50 @@ forward void Han_OnClientEmptyReload(int client);
  * @param client 玩家索引
  */
 forward void Han_OnClientTacticalReload(int client);
+
+/**
+ * 播放玩家的自定义动画（最高优先级）。
+ *
+ * 触发时强制退出机瞄/侧瞄/奔跑/检视/换弹接管；播放期间 机瞄/侧瞄/奔跑 可打断
+ * （interruptable=true 时）；检视不会打断；结束只回 idle，不恢复被中断状态。
+ * 适用自定义模型武器（双VM驱动，1号VM 播放动画序列）。
+ *
+ * @param client        玩家索引
+ * @param seq           动画序列号
+ * @param frames        动画时长（帧，30fps 基准）
+ * @param repeat        true=播放中允许重播打断自己, false=播放中再次调用返回 false
+ * @param interruptable true=可被机瞄/侧瞄/奔跑打断(默认), false=绝对霸体播完
+ * @return true=已开始播放, false=参数非法/不在游戏/播放中且不允许重播
+ */
+native bool Han_SetClientCustomAnim(int client, int seq, int frames, bool repeat = false, bool interruptable = true);
+
+/**
+ * 玩家当前是否在播放自定义动画。
+ *
+ * @param client 玩家索引
+ * @return true = 播放中
+ */
+native bool Han_IsClientCustomAnim(int client);
+
+/**
+ * 停止播放玩家的自定义动画（广播结束事件，效果等同自然结束）。
+ *
+ * @param client 玩家索引
+ */
+native void Han_StopClientCustomAnim(int client);
+
+/**
+ * 玩家自定义动画开始时触发（含重播打断自己）。
+ *
+ * @param client 玩家索引
+ * @param seq    动画序列号
+ * @param frames 动画时长（帧，30fps 基准）
+ */
+forward void Han_OnClientCustomAnimStart(int client, int seq, int frames);
+
+/**
+ * 玩家自定义动画结束时触发（自然结束 / 被机瞄侧瞄奔跑打断 / 切枪 / 死亡）。
+ *
+ * @param client 玩家索引
+ */
+forward void Han_OnClientCustomAnimEnd(int client);

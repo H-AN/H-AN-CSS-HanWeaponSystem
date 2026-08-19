@@ -143,6 +143,10 @@ public void OnPostThinkPost(int client)
         if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0)
             Aim_ForceExit(client);
 
+        // 换武器强制结束自定义动画(防旧序列残留到新武器, 广播结束事件)
+        if (g_bCustomAnim[client])
+            CustomAnim_End(client);
+
         GetEdictClassname(WeaponIndex, ClassName, sizeof(ClassName));
 
         // 自动连发标记(有效值: 配置开启且非原生开镜且无插件机瞄; 右键被机瞄/原生开镜占用则自动失效)
@@ -330,6 +334,9 @@ public void OnPostThinkPost(int client)
 
     // 空仓/战术换弹后处理(强制换弹序列/结束条件)
     EmptyReload_OnPostThinkPost(client);
+
+    // 自定义动画后处理(最高优先级, 覆盖一切其他模块动画)
+    CustomAnim_OnPostThinkPost(client);
 }
 
 // 隐藏死亡v模型
@@ -350,6 +357,9 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
 
     // 强制结束空仓/战术换弹接管(恢复VM[1])
     EmptyReload_End(client);
+
+    // 强制结束自定义动画(广播结束事件)
+    CustomAnim_End(client);
 
     IsCustom[client] = false;
     IsCustom2[client] = false;

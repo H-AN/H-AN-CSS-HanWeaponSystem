@@ -82,6 +82,10 @@ public Action Cmd_Inspect(int client, int args)
     if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
         return Plugin_Handled;
 
+    // 自定义动画中禁止检视(自定义动画优先级高于检视, 检视不打断自定义动画)
+    if (g_bCustomAnim[client])
+        return Plugin_Handled;
+
     // 单次模式: 检视中忽略重复触发; 重复模式: 允许重播
     if (!Inspect_IsRepeatable(weapon) && g_bInspecting[client])
         return Plugin_Handled;
@@ -125,6 +129,10 @@ void Inspect_OnPlayerRunCmd(int client, int impulse, bool bReloading)
 
         // 机瞄/侧瞄中/过渡中/奔跑中禁止检视
         if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
+            return;
+
+        // 自定义动画中禁止检视(自定义动画优先级高于检视, 检视不打断自定义动画)
+        if (g_bCustomAnim[client])
             return;
 
         // 单次模式: 检视中忽略重复触发; 重复模式: 允许反复按F重播

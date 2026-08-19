@@ -182,6 +182,17 @@ void Zoom_OnPlayerRunCmd(int client, int buttons, bool bReloading)
     bool canZoom = !isNativeScope && Zoom_IsWeaponZoomable(weapon);
     bool canSideAim = Zoom_IsWeaponSideAimable(weapon);
 
+    // 自定义动画中: 不可打断则瞄准键无效; 可打断则先结束自定义动画再走瞄准逻辑
+    if (g_bCustomAnim[client])
+    {
+        bool pressAim = (canZoom && (buttons & IN_ATTACK2)) || (canSideAim && (buttons & IN_ATTACK3));
+        if (!pressAim)
+            return;
+        if (!g_bCustomAnimInterruptable[client])
+            return;
+        CustomAnim_End(client);
+    }
+
     // 检视中按下瞄准键(机瞄=右键/侧瞄=中键) → 先打断检视, 下一帧瞄准逻辑接管(检视优先级最低)
     if (g_bInspecting[client] || g_bRunning[client])
     {
