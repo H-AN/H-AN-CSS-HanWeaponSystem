@@ -1,4 +1,4 @@
-#define VERSION "6.9"
+#define VERSION "7.0"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -82,6 +82,13 @@ float g_fRunShakePitchVel[MAXPLAYERS + 1]; // 抖动弹簧: 俯仰角速度(度/
 bool g_bRunShakeSign[MAXPLAYERS + 1];    // 抖动脉冲交替符号(模拟左右脚交替摆动)
 
 Handle g_ForwardClientRun = INVALID_HANDLE;
+
+// ============================================================================
+// >> 买卖全局
+// ============================================================================
+Handle g_hBuyConfig = INVALID_HANDLE;   // 买卖独立配置文件(HanWeaponBuyData.cfg)
+float g_fRoundStartTime = 0.0;          // round_start 时间戳(时间窗判定用)
+ConVar g_hBuyTime = null;               // mp_buytime 购买时间窗(秒)
 
 // ============================================================================
 // >> 空仓/战术换弹全局
