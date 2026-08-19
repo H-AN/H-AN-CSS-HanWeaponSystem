@@ -1,4 +1,4 @@
-#define VERSION "6.7"
+#define VERSION "6.8"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -12,6 +12,8 @@ char g_WeaponClassname[MAX_WEAPON][64];
 char g_WeaponUseClassname[MAX_WEAPON][64];
 char g_WeaponTeam[MAX_WEAPON][64];
 char g_WeaponAmmo[MAX_WEAPON][16];
+int g_WeaponMaxAmmo[MAX_WEAPON];   // 弹夹容量(从 scripts/<useclassname>.txt 根节点 clip_size 预缓存, 0=无子弹/脚本缺失, 换弹音效不服务)
+Handle g_hWeaponScript[MAX_WEAPON]; // 解析后的武器脚本KV句柄(scripts/<useclassname>.txt 根节点, 插件加载时只解析一次; INVALID_HANDLE=解析失败)
 int g_WeaponCount = 0;
 
 bool SpawnCheck[MAXPLAYERS + 1];

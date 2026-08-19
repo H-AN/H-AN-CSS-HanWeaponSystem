@@ -67,7 +67,6 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// Sqtype:        1=手动自定义动画序列(IsCustom2)");
     WriteFileLine(file, "// skincode:      皮肤索引");
     WriteFileLine(file, "// ammo:          给予弹夹子弹量(默认20000)");
-    WriteFileLine(file, "// maxammo:       弹夹容量(用于换弹音效播放判断)");
     WriteFileLine(file, "// killicon:      击杀图标");
     WriteFileLine(file, "// team:          可用队伍(all/ct/t/both等)");
     WriteFileLine(file, "// reloadsound:   兜底换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒(默认30); 自动随reloadspeed对齐)。适用于: 未配空仓/战术的武器所有换弹; 已配单侧空仓/战术的武器另一侧换弹(走引擎普通换弹)");
@@ -88,7 +87,6 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "        \"damage\"         \"+40\"");
     WriteFileLine(file, "        \"firespeed\"      \"+0.5:+0.6\"");
     WriteFileLine(file, "        \"ammo\"           \"1000\"");
-    WriteFileLine(file, "        \"maxammo\"        \"30\"");
     WriteFileLine(file, "        \"killicon\"       \"weapon_ak47\"");
     WriteFileLine(file, "        \"team\"           \"all\"");
     WriteFileLine(file, "        \"vmodel\"         \"models/v_custom/v_ak47.mdl\"");
@@ -130,6 +128,12 @@ void LoadWeaponCommands()
                 if (strlen(g_WeaponCommand[g_WeaponCount]) > 0)
                 {
                     RegConsoleCmd(g_WeaponCommand[g_WeaponCount], WeaponCommandCallback, "");
+
+                    // 解析武器脚本到内存缓存(插件加载时只解析一遍, 脚本不支持热更新), 供任意根节点字段通用读取
+                    g_hWeaponScript[g_WeaponCount] = ParseWeaponScript(g_WeaponUseClassname[g_WeaponCount]);
+                    // 弹夹容量: 从缓存读脚本根节点 clip_size(无子弹/缺失=0, 换弹音效不服务)
+                    g_WeaponMaxAmmo[g_WeaponCount] = GetScriptClipSize(g_WeaponUseClassname[g_WeaponCount]);
+
                     g_WeaponCount++;
                 }
                 else
@@ -541,6 +545,91 @@ void NormalizePath(char[] path)
 // ============================================================================
 // >> 通过配置获取武器值
 // ============================================================================
+// ============================================================================
+// >> 解析服务器武器脚本 scripts/<useclassname>.txt(插件加载时只解析一遍)
+//    返回 KV 句柄(根节点), 脚本缺失/读取失败返回 INVALID_HANDLE
+//    注意: 句柄由插件持有, 插件卸载时 SourceMod 自动回收, 无需手动关闭
+// ============================================================================
+Handle ParseWeaponScript(const char[] useclassname)
+{
+    char path[PLATFORM_MAX_PATH];
+    Format(path, sizeof(path), "scripts/%s.txt", useclassname);
+    if (!FileExists(path, true, "GAME"))
+        return INVALID_HANDLE;
+
+    Handle kv = CreateKeyValues("WeaponData");
+    if (!FileToKeyValues(kv, path))
+    {
+        CloseHandle(kv);
+        return INVALID_HANDLE;
+    }
+
+    KvRewind(kv);
+    return kv;
+}
+
+// ============================================================================
+// >> 通用: 从缓存的武器脚本根节点读取任意字段(字符串)
+//    脚本未缓存/键缺失 → false + 空串
+//    未来新字段(如 WeaponPrice/自定义键)直接复用, 无需新建函数
+//    注意: 扫描含当前正在注册的槽位(i<=g_WeaponCount), 兼容插件加载时半注册状态
+// ============================================================================
+bool GetWeaponScriptValue(const char[] useclassname, const char[] key, char[] value, int maxlen)
+{
+    if (strlen(useclassname) <= 0)
+        return false;
+
+    for (int i = 0; i <= g_WeaponCount; i++)
+    {
+        if (StrEqual(useclassname, g_WeaponUseClassname[i], false))
+        {
+            if (g_hWeaponScript[i] == INVALID_HANDLE)
+                return false;
+
+            KvRewind(g_hWeaponScript[i]);
+            KvGetString(g_hWeaponScript[i], key, value, maxlen, "");
+            return (strlen(value) > 0);
+        }
+    }
+
+    return false;
+}
+
+// ============================================================================
+// >> clip_size 专用薄封装(弹夹容量)
+//    键缺失 → 0; 负值(无弹武器如刀/雷/火箭筒)钳制为 0
+//    0 = 无子弹 = 换弹音效不服务
+// ============================================================================
+int GetScriptClipSize(const char[] useclassname)
+{
+    char clipStr[16];
+    if (!GetWeaponScriptValue(useclassname, "clip_size", clipStr, sizeof(clipStr)))
+        return 0;
+
+    int clip = StringToInt(clipStr);
+    return (clip < 0) ? 0 : clip;
+}
+
+// ============================================================================
+// >> 获取武器弹夹容量(预缓存的脚本 clip_size, 0=未知)
+// ============================================================================
+int GetWeaponMaxAmmo(int weaponEnt)
+{
+    if (weaponEnt <= 0 || !IsValidEntity(weaponEnt))
+        return 0;
+
+    char className[64];
+    GetEntityClassname(weaponEnt, className, sizeof(className));
+
+    for (int i = 0; i < g_WeaponCount; i++)
+    {
+        if (StrEqual(className, g_WeaponUseClassname[i], false))
+            return g_WeaponMaxAmmo[i];
+    }
+
+    return 0;
+}
+
 bool GetWeaponConfigValue(int weaponEnt, const char[] key, char[] value, int valueLen)
 {
     if (weaponEnt <= 0 || !IsValidEntity(weaponEnt) || g_hWeaponConfig == INVALID_HANDLE)

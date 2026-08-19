@@ -243,18 +243,14 @@ public void Hook_WeaponReloadPost(int weapon, bool bSuccessful)
         magazine = GetEntProp(owner, Prop_Data, "m_iAmmo", 4, WeaponAmmo);
     }
 
-    int maxAmmo = 0;
-    char maxAmmoStr[32];
-    if (GetWeaponConfigValue(weapon, "maxammo", maxAmmoStr, sizeof(maxAmmoStr)))
-    {
-        maxAmmo = StringToInt(maxAmmoStr);
+    // 满仓判定: 弹夹容量来自预缓存的武器脚本 clip_size(GetWeaponMaxAmmo), 满弹夹(ammo>=maxAmmo)或备用弹匣为空不播换弹音效
+    int maxAmmo = GetWeaponMaxAmmo(weapon);
 
-        if (ammo < maxAmmo && magazine > 0)
-        {
-            char soundStr[256];
-            if (SelectReloadSound(weapon, ammo, soundStr, sizeof(soundStr)))
-                ScheduleReloadSounds(owner, weapon, soundStr);
-        }
+    if (ammo < maxAmmo && magazine > 0)
+    {
+        char soundStr[256];
+        if (SelectReloadSound(weapon, ammo, soundStr, sizeof(soundStr)))
+            ScheduleReloadSounds(owner, weapon, soundStr);
     }
 }
 
