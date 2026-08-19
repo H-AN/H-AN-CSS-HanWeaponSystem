@@ -12,12 +12,12 @@
 //     name              菜单显示名(空=显示 useclassname)
 //     buyable           1=可购买 0=关闭(仅对注册表自定义武器生效)
 //     price             购买价格(空=注册表武器自动回落武器脚本 WeaponPrice;
-//                       手动添加的原生武器必须自己填写, 不填视为 0)
+//                       原生武器自动回落引擎原生价格 CS_GetWeaponPrice, 均不填=0)
 //     sellable          1=可卖出 0=关闭
 //     sellratio         本队武器卖出比例(默认 0.5=半价)
 //     sellratio_other   敌方/缴获武器卖出比例(空=回落 sellratio)
 // 推论(已与需求方确认):
-//   A. 原生武器(非注册表)脚本未缓存 → 价格必须手填, 不填视为 0, 卖出收获 0
+//   A. 原生武器(非注册表)价格: 手填 price 优先, 不填自动回落引擎原生价格(CS_GetWeaponPrice, 按需实时查询), 引擎不可用再回落内置小表
 //   B. 买菜单只列注册表自定义武器; 手写的原生段只参与卖出
 //   C. 缴获加价(sellratio_other)只对注册表武器生效, 原生武器按双方通用走 sellratio
 // ============================================================================
@@ -75,7 +75,7 @@ void WriteDefaultBuyConfig(const char[] path)
     WriteFileLine(file, "// useclassname   对应主配置的武器 useclassname(同步段自动复制; 手动添加的原生武器需自己填)");
     WriteFileLine(file, "// name           菜单显示名(空=显示 useclassname)");
     WriteFileLine(file, "// buyable        1=可购买 0=关闭(仅对注册表自定义武器生效)");
-    WriteFileLine(file, "// price          购买价格(空=注册表武器自动回落脚本 WeaponPrice; 原生武器必须手填, 不填=0)");
+    WriteFileLine(file, "// price          购买价格(空=注册表武器自动回落脚本 WeaponPrice; 原生武器自动回落引擎原生价格)");
     WriteFileLine(file, "// sellable       1=可卖出 0=关闭");
     WriteFileLine(file, "// sellratio      本队武器卖出比例(默认 0.5=半价)");
     WriteFileLine(file, "// sellratio_other 敌方/缴获武器卖出比例(空=回落 sellratio)");

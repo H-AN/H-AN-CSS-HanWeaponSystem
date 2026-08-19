@@ -705,3 +705,76 @@ int GetWeaponTeam(int weaponEnt)
 
     return 0;
 }
+
+// ============================================================================
+// >> 原生武器价格(运行时按需查询引擎, 不建缓存; 刀/C4/盾=0)
+//    CS:S 原生武器数据编译在 DLL 内(无磁盘脚本可读), 用 cstrike 扩展原生
+//    CS_AliasToWeaponID + CS_GetWeaponPrice 实时获取价格(调用时必有在游戏内的 client)
+//    原生不可用(缺 gamedata/非 CS:S)时回落内置价格小表(GetFallbackNativePrice)
+// ============================================================================
+int GetNativeWeaponPrice(int client, const char[] classname)
+{
+    if (client <= 0 || client > MaxClients || !IsClientInGame(client))
+        return 0;
+
+    if (!g_bNativePriceChecked)
+    {
+        g_bNativePriceAvailable = (GetFeatureStatus(FeatureType_Native, "CS_AliasToWeaponID") == FeatureStatus_Available
+                                && GetFeatureStatus(FeatureType_Native, "CS_GetWeaponPrice") == FeatureStatus_Available);
+        g_bNativePriceChecked = true;
+    }
+
+    if (!g_bNativePriceAvailable)
+        return GetFallbackNativePrice(classname);
+
+    char alias[32];
+    strcopy(alias, sizeof(alias), classname);
+    if (StrContains(alias, "weapon_") == 0)
+        strcopy(alias, sizeof(alias), alias[7]);
+
+    CSWeaponID wid = CS_AliasToWeaponID(alias);
+    if (wid == CSWeapon_NONE)
+        return 0;
+
+    return CS_GetWeaponPrice(client, wid);
+}
+
+// ============================================================================
+// >> 原生武器价格内置小表(仅当 cstrike 原生不可用时的兜底; CS:S 默认售价)
+//    未知/未列出的原生武器返回 0(如刀/C4 本就无价格)
+// ============================================================================
+int GetFallbackNativePrice(const char[] classname)
+{
+    if (StrEqual(classname, "weapon_p228")) return 600;
+    if (StrEqual(classname, "weapon_glock")) return 400;
+    if (StrEqual(classname, "weapon_scout")) return 2750;
+    if (StrEqual(classname, "weapon_hegrenade")) return 300;
+    if (StrEqual(classname, "weapon_xm1014")) return 3000;
+    if (StrEqual(classname, "weapon_mac10")) return 1400;
+    if (StrEqual(classname, "weapon_aug")) return 3500;
+    if (StrEqual(classname, "weapon_smokegrenade")) return 300;
+    if (StrEqual(classname, "weapon_elite")) return 800;
+    if (StrEqual(classname, "weapon_fiveseven")) return 750;
+    if (StrEqual(classname, "weapon_ump45")) return 1700;
+    if (StrEqual(classname, "weapon_sg550")) return 4200;
+    if (StrEqual(classname, "weapon_galil")) return 2000;
+    if (StrEqual(classname, "weapon_famas")) return 2250;
+    if (StrEqual(classname, "weapon_usp")) return 500;
+    if (StrEqual(classname, "weapon_awp")) return 4750;
+    if (StrEqual(classname, "weapon_mp5navy")) return 1500;
+    if (StrEqual(classname, "weapon_m249")) return 5750;
+    if (StrEqual(classname, "weapon_m3")) return 1700;
+    if (StrEqual(classname, "weapon_m4a1")) return 3100;
+    if (StrEqual(classname, "weapon_tmp")) return 1250;
+    if (StrEqual(classname, "weapon_g3sg1")) return 5000;
+    if (StrEqual(classname, "weapon_flashbang")) return 200;
+    if (StrEqual(classname, "weapon_deagle")) return 650;
+    if (StrEqual(classname, "weapon_sg552")) return 3500;
+    if (StrEqual(classname, "weapon_ak47")) return 2500;
+    if (StrEqual(classname, "weapon_p90")) return 2350;
+    if (StrEqual(classname, "weapon_shield")) return 2200;
+    if (StrEqual(classname, "weapon_kevlar")) return 650;
+    if (StrEqual(classname, "weapon_assaultsuit")) return 1000;
+    if (StrEqual(classname, "weapon_nightvision")) return 1500;
+    return 0;
+}

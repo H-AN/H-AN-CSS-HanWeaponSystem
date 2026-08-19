@@ -1,4 +1,4 @@
-#define VERSION "7.0"
+#define VERSION "7.1"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -80,6 +80,8 @@ float g_fRunShakeYawVel[MAXPLAYERS + 1]; // 抖动弹簧: 偏航角速度(度/�
 float g_fRunShakePitch[MAXPLAYERS + 1];  // 抖动弹簧: 当前俯仰角(度, 点头, 写入 m_vecPunchAngle.x)
 float g_fRunShakePitchVel[MAXPLAYERS + 1]; // 抖动弹簧: 俯仰角速度(度/秒)
 bool g_bRunShakeSign[MAXPLAYERS + 1];    // 抖动脉冲交替符号(模拟左右脚交替摆动)
+bool g_bBotRunHold[MAXPLAYERS + 1];      // Bot 触发的奔跑保持中(botruncd 秒内松开前进不结束奔跑)
+float g_fBotRunHoldEnd[MAXPLAYERS + 1];  // Bot 奔跑保持窗口结束时间戳
 
 Handle g_ForwardClientRun = INVALID_HANDLE;
 
@@ -89,6 +91,20 @@ Handle g_ForwardClientRun = INVALID_HANDLE;
 Handle g_hBuyConfig = INVALID_HANDLE;   // 买卖独立配置文件(HanWeaponBuyData.cfg)
 float g_fRoundStartTime = 0.0;          // round_start 时间戳(时间窗判定用)
 ConVar g_hBuyTime = null;               // mp_buytime 购买时间窗(秒)
+
+// ============================================================================
+// >> Bot 武器全局
+// ============================================================================
+Handle g_hBotConfig = INVALID_HANDLE;   // Bot 武器独立配置文件(HanWeaponBotData.cfg)
+bool g_bBotBlockBuy[MAXPLAYERS + 1];    // 该 bot 是否挡购(持有一把以上新武器才为 true; 给枪前预挡)
+int g_iBotGiveSlot[MAXPLAYERS + 1];     // 槽位顺序给枪序列中当前槽位(0-4, 5=全部给完)
+int g_iBotGiveGen[MAXPLAYERS + 1];      // 给枪序列代次(每次出生递增, 防旧序列定时器串扰)
+float g_fBotAimCd[MAXPLAYERS + 1];      // Bot 开镜独立 CD(到点时间; 同类行为间冷却, 三类互不饿死)
+float g_fBotRunCd[MAXPLAYERS + 1];      // Bot 奔跑独立 CD(到点时间)
+float g_fBotInspectCd[MAXPLAYERS + 1];  // Bot 检视独立 CD(到点时间)
+float g_fBotAimEnd[MAXPLAYERS + 1];     // Bot 机瞄/侧瞄自动退镜时间点(开镜维持 botaimtime 秒)
+bool g_bNativePriceChecked = false;     // 原生武器价格可用性是否已探测(只探测一次)
+bool g_bNativePriceAvailable = false;   // CS_AliasToWeaponID/CS_GetWeaponPrice 是否可用
 
 // ============================================================================
 // >> 空仓/战术换弹全局

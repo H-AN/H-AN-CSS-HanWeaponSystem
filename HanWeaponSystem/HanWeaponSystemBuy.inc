@@ -156,9 +156,9 @@ void Buy_GetDisplayName(const char[] useclassname, char[] out, int maxlen)
 }
 
 // ============================================================================
-// >> 购买价格(配置 price → 注册表武器回落脚本 WeaponPrice → 0)
+// >> 购买价格(配置 price → 注册表武器回落脚本 WeaponPrice → 原生武器回落引擎原生价格 → 0)
 // ============================================================================
-int Buy_GetPrice(const char[] useclassname)
+int Buy_GetPrice(int client, const char[] useclassname)
 {
     char buf[16];
     if (GetBuyConfigValue(useclassname, "price", buf, sizeof(buf)))
@@ -168,6 +168,10 @@ int Buy_GetPrice(const char[] useclassname)
     {
         if (GetWeaponScriptValue(useclassname, "WeaponPrice", buf, sizeof(buf)))
             return StringToInt(buf);
+    }
+    else
+    {
+        return GetNativeWeaponPrice(client, useclassname);
     }
 
     return 0;
@@ -208,7 +212,7 @@ float Buy_GetSellRatio(const char[] useclassname, int client)
 // ============================================================================
 int Buy_GetSellRefund(const char[] useclassname, int client)
 {
-    int price = Buy_GetPrice(useclassname);
+    int price = Buy_GetPrice(client, useclassname);
     float ratio = Buy_GetSellRatio(useclassname, client);
     return RoundToNearest(price * ratio);
 }
@@ -307,7 +311,7 @@ void Buy_OpenBuyMenu(int client)
         if (!Buy_WeaponTeamMatches(client, idx))
             continue;
 
-        int price = Buy_GetPrice(g_WeaponUseClassname[i]);
+        int price = Buy_GetPrice(client, g_WeaponUseClassname[i]);
         char name[64];
         Buy_GetDisplayName(g_WeaponUseClassname[i], name, sizeof(name));
 
@@ -439,7 +443,7 @@ void Buy_TryBuy(int client, const char[] useclass)
         return;
     }
 
-    int price = Buy_GetPrice(g_WeaponUseClassname[idx]);
+    int price = Buy_GetPrice(client, g_WeaponUseClassname[idx]);
     int money = Client_GetMoney(client);
     if (money < price)
     {

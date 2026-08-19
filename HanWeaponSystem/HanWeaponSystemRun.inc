@@ -23,6 +23,9 @@
 // IN_SPEED 点按判定窗口(秒): 短按松开视为点按触发奔跑, 长按保持静步
 #define RUN_SPEED_TAP_TIME 0.2
 
+// Bot 奔跑保持: 水平速度(runcmd vel 的 x/y 分量)低于此值视为已停下(被挡/站定), 结束奔跑
+#define BOT_RUN_STOP_SPEED 25.0
+
 // 奔跑抖动参数(弹簧阻尼器: 幅度取配置 runshake 作强度, 间隔固定无需步伐检测)
 #define RUN_SHAKE_INTERVAL 0.3            // 晃动脉冲间隔(秒)
 #define RUN_SHAKE_DAMPING 9.0             // 弹簧阻尼(速度衰减, Beatrun 原值)
@@ -97,9 +100,10 @@ void Run_ApplyForce(int client, int weapon)
 // >> 触发/停止检测(由 Combat 的 OnPlayerRunCmd 调用)
 // 奔跑触发方式: 前进按住时 点按Shift(短按松开)进入奔跑; 长按Shift保持静步;
 // 奔跑中松开前进/停止即结束, 再次点按Shift才可再奔跑
+// Bot 奔跑保持: botruncd 秒内松开前进/转向不结束奔跑, 以 runcmd 实际速度判定是否停下
 // 返回 Plugin_Changed 表示已修改按键(奔跑中剔除IN_SPEED/禁止换弹)
 // ============================================================================
-public Action Run_OnPlayerRunCmd(int client, int &buttons, bool bReloading)
+public Action Run_OnPlayerRunCmd(int client, int &buttons, bool bReloading, const float vel[3])
 {
     int stage = g_iRunStage[client];
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
@@ -135,11 +139,27 @@ public Action Run_OnPlayerRunCmd(int client, int &buttons, bool bReloading)
             bStop = true;
         else if (stage == RUN_STAGE_IN || stage == RUN_STAGE_RUN)
         {
-            // 松开前进/按其他方向或跳跃下蹲/开火即结束奔跑
-            bStop = ((buttons & IN_ATTACK) || (buttons & IN_ATTACK2) || (buttons & IN_ATTACK3) || (buttons & IN_ALT1) || (buttons & IN_ALT2) ||
-                     !(buttons & IN_FORWARD) ||
-                     (buttons & IN_BACK) || (buttons & IN_MOVELEFT) || (buttons & IN_MOVERIGHT) ||
-                     (buttons & IN_JUMP) || (buttons & IN_DUCK));
+            // Bot 奔跑保持: botruncd 秒内松开前进/转向不结束奔跑, 以实际速度判定是否停下
+            bool botHold = g_bBotRunHold[client] && GetGameTime() < g_fBotRunHoldEnd[client];
+            float hSpeed = SquareRoot(vel[0] * vel[0] + vel[1] * vel[1]);
+
+            bStop = (buttons & IN_ATTACK) || (buttons & IN_ATTACK2) || (buttons & IN_ATTACK3) || (buttons & IN_ALT1) || (buttons & IN_ALT2);
+
+            if (!bStop)
+            {
+                if (botHold)
+                {
+                    // 保持期: 转向/松开前进不停止, 仅后退/跳跃/下蹲/速度近0(被挡或停下)才停
+                    bStop = (buttons & IN_BACK) || (buttons & IN_JUMP) || (buttons & IN_DUCK) ||
+                            (hSpeed < BOT_RUN_STOP_SPEED);
+                }
+                else
+                {
+                    // 常规: 松开前进/转向/后退/跳跃/下蹲即结束奔跑
+                    bStop = !(buttons & IN_FORWARD) || (buttons & IN_BACK) || (buttons & IN_MOVELEFT) || (buttons & IN_MOVERIGHT) ||
+                            (buttons & IN_JUMP) || (buttons & IN_DUCK);
+                }
+            }
         }
         else // RUN_STAGE_OUT: 过渡中按攻击/侧瞄立即截断
         {
@@ -310,6 +330,7 @@ void Run_End(int client)
     g_bRunFrame[client] = false;
     g_iRunWeapon[client] = -1;
     g_fRunShakeNext[client] = 0.0;
+    g_bBotRunHold[client] = false;
 
     // 死亡或已无武器时直接清零抖动弹簧(否则无法积分导致角度冻结); 正常停止交给弹簧自然衰减
     if (!IsPlayerAlive(client) || GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon") <= 0)

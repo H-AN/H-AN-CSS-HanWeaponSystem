@@ -140,11 +140,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
     Sounds_OnPlayerRunCmd(client, buttons);
 
     // 奔跑触发(前进按住时点按Shift); 奔跑中剔除IN_SPEED/禁止换弹时返回 Plugin_Changed 透传按键修改
-    Action runRet = Run_OnPlayerRunCmd(client, buttons, bIsReloading);
+    Action runRet = Run_OnPlayerRunCmd(client, buttons, bIsReloading, vel);
     if (runRet == Plugin_Changed || bAutoFired || bCustomChanged)
     {
         return Plugin_Changed;
     }
+
+    // Bot 行为(机瞄/侧瞄/奔跑/检视): 仅 IsFakeClient 进入, 纯函数调用不修改按键/返回值
+    Bot_OnPlayerRunCmd(client, buttons, bIsReloading);
 
     return Plugin_Continue;
 }
