@@ -70,6 +70,7 @@ void WriteDefaultRunConfig(const char[] path)
     WriteFileLine(file, "// runout         可选 奔跑->Idle过渡动作序列号");
     WriteFileLine(file, "// runoutlength   可选 奔跑->Idle过渡时长(帧)");
     WriteFileLine(file, "// runshake       抖动幅度值; 0/缺省=不抖动, >0 按该值抖动");
+    WriteFileLine(file, "// runseq_silencer/runtime_silencer/runin_silencer/runinlength_silencer/runout_silencer/runoutlength_silencer: 消音器变体(仅变体武器 m4a1/usp); 装上消音器时生效, 不填回落普通字段");
     WriteFileLine(file, "\"HanWeaponSystem\"");
     WriteFileLine(file, "{");
     WriteFileLine(file, "}");
@@ -93,9 +94,10 @@ void SyncRunConfig()
         WriteDefaultRunConfig(cfgFile);
     }
 
-    // 收集主配置中的武器键名 + useclassname
+    // 收集主配置中的武器键名 + useclassname + classname(变体判定用)
     char weaponKeys[MAX_WEAPON][64];
     char weaponUse[MAX_WEAPON][64];
+    char weaponOrig[MAX_WEAPON][64];
     int total = 0;
 
     KvRewind(g_hWeaponConfig);
@@ -107,11 +109,14 @@ void SyncRunConfig()
             KvGetSectionName(g_hWeaponConfig, name, sizeof(name));
             char useclass[64];
             KvGetString(g_hWeaponConfig, "useclassname", useclass, sizeof(useclass), "");
+            char origclass[64];
+            KvGetString(g_hWeaponConfig, "classname", origclass, sizeof(origclass), "");
 
             if (strlen(name) > 0 && total < MAX_WEAPON)
             {
                 strcopy(weaponKeys[total], sizeof(weaponKeys[]), name);
                 strcopy(weaponUse[total], sizeof(weaponUse[]), useclass);
+                strcopy(weaponOrig[total], sizeof(weaponOrig[]), origclass);
                 total++;
             }
         } while (KvGotoNextKey(g_hWeaponConfig));
@@ -128,6 +133,7 @@ void SyncRunConfig()
 
     ArrayList missingKeys = new ArrayList(64);
     ArrayList missingUse = new ArrayList(64);
+    ArrayList missingOrig = new ArrayList(64);
 
     for (int i = 0; i < total; i++)
     {
@@ -151,6 +157,7 @@ void SyncRunConfig()
         {
             missingKeys.PushString(weaponKeys[i]);
             missingUse.PushString(weaponUse[i]);
+            missingOrig.PushString(weaponOrig[i]);
         }
     }
     CloseHandle(runKv);
@@ -160,6 +167,7 @@ void SyncRunConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         return;
     }
 
@@ -170,6 +178,7 @@ void SyncRunConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -197,6 +206,7 @@ void SyncRunConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -211,9 +221,10 @@ void SyncRunConfig()
         {
             for (int m = 0; m < missingKeys.Length; m++)
             {
-                char key[64], use[64];
+                char key[64], use[64], orig[64];
                 missingKeys.GetString(m, key, sizeof(key));
                 missingUse.GetString(m, use, sizeof(use));
+                missingOrig.GetString(m, orig, sizeof(orig));
 
                 WriteFileLine(outFile, "");
                 WriteFileLine(outFile, "    \"%s\"", key);
@@ -230,6 +241,18 @@ void SyncRunConfig()
                 WriteFileLine(outFile, "        // \"runout\"          \"6\"");
                 WriteFileLine(outFile, "        // \"runoutlength\"    \"5\"");
                 WriteFileLine(outFile, "        // \"runshake\"        \"0.6\"");
+
+                if (IsVariantWeaponClass(orig))
+                {
+                    WriteFileLine(outFile, "        // 消音器变体(仅变体武器 m4a1/usp, 装上消音器时生效; 不填=回落普通字段):");
+                    WriteFileLine(outFile, "        // \"runseq_silencer\"       \"7\"");
+                    WriteFileLine(outFile, "        // \"runtime_silencer\"      \"15\"");
+                    WriteFileLine(outFile, "        // \"runin_silencer\"        \"6\"");
+                    WriteFileLine(outFile, "        // \"runinlength_silencer\"  \"5\"");
+                    WriteFileLine(outFile, "        // \"runout_silencer\"       \"8\"");
+                    WriteFileLine(outFile, "        // \"runoutlength_silencer\" \"5\"");
+                }
+
                 WriteFileLine(outFile, "    }");
             }
         }
@@ -240,6 +263,7 @@ void SyncRunConfig()
 
     delete missingKeys;
     delete missingUse;
+    delete missingOrig;
     delete lines;
 
     PrintToServer("[HWS] 奔跑配置已同步 %d 个缺失武器", synced);
@@ -321,4 +345,19 @@ float Run_GetFloat(int weapon, const char[] key, float def)
     if (GetRunConfigValue(weapon, key, buf, sizeof(buf)))
         return StringToFloat(buf);
     return def;
+}
+
+// ============================================================================
+// >> 变体感知读取奔跑配置整型值(消音器装上且变体字段填了 → 变体; 否则回落普通字段)
+// ============================================================================
+int Run_GetIntVariant(int weapon, const char[] key, int def)
+{
+    char variantKey[64];
+    Format(variantKey, sizeof(variantKey), "%s_silencer", key);
+
+    int variantVal = Run_GetInt(weapon, variantKey, -1);
+    if (IsWeaponSilencerOn(weapon) && variantVal >= 0)
+        return variantVal;
+
+    return Run_GetInt(weapon, key, def);
 }

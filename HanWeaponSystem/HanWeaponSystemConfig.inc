@@ -62,6 +62,7 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// firespeed:     武器攻速 +1.0:-0.5 可设置左右键");
     WriteFileLine(file, "// vmodel/wmodel: 模型路径");
     WriteFileLine(file, "// firesound/switchsound: 音效路径");
+    WriteFileLine(file, "// wmodel_silencer/firesound_silencer: 消音器变体(仅变体武器 weapon_m4a1/weapon_usp 有效); 装上消音器时用变体, 不填回落普通字段");
     WriteFileLine(file, "// customsoundct/customsoundt: 替换刀音效路径文件夹 不同队伍");
     WriteFileLine(file, "// autofire:      速射连发(1/0) 按住右键强制转左键速射并清除后坐力; 配有机瞄或原生开镜的武器自动失效(机瞄优先)");
     WriteFileLine(file, "// Sqtype:        1=手动自定义动画序列(IsCustom2)");
@@ -342,18 +343,24 @@ void PrecacheWeaponResources(Handle kvRoot)
         char fireSound[PLATFORM_MAX_PATH];
         char switchSound[PLATFORM_MAX_PATH];
         char reloadSoundStr[256];
+        char wmodelSilencer[PLATFORM_MAX_PATH];
+        char fireSoundSilencer[PLATFORM_MAX_PATH];
 
         KvGetString(kvRoot, "Vmodels", vmodel, sizeof(vmodel), "");
         KvGetString(kvRoot, "Wmodels", wmodel, sizeof(wmodel), "");
         KvGetString(kvRoot, "FireSound", fireSound, sizeof(fireSound), "");
         KvGetString(kvRoot, "SwitchSound", switchSound, sizeof(switchSound), "");
         KvGetString(kvRoot, "reloadsound", reloadSoundStr, sizeof(reloadSoundStr), "");
+        KvGetString(kvRoot, "wmodel_silencer", wmodelSilencer, sizeof(wmodelSilencer), "");
+        KvGetString(kvRoot, "firesound_silencer", fireSoundSilencer, sizeof(fireSoundSilencer), "");
 
         NormalizePath(vmodel);
         NormalizePath(wmodel);
         NormalizePath(fireSound);
         NormalizePath(switchSound);
         NormalizePath(reloadSoundStr);
+        NormalizePath(wmodelSilencer);
+        NormalizePath(fireSoundSilencer);
 
         if (strlen(vmodel) > 0)
             PrecacheModel(vmodel);
@@ -366,6 +373,13 @@ void PrecacheWeaponResources(Handle kvRoot)
 
         if (strlen(switchSound) > 0)
             PrecacheSoundList(switchSound);
+
+        // 消音器变体资源: 填了才预缓存, 缺失不预缓存(回落普通字段)
+        if (strlen(wmodelSilencer) > 0)
+            PrecacheModel(wmodelSilencer);
+
+        if (strlen(fireSoundSilencer) > 0)
+            PrecacheSoundList(fireSoundSilencer);
 
         if (strlen(reloadSoundStr) > 0)
         {
@@ -663,6 +677,76 @@ bool GetWeaponConfigValue(int weaponEnt, const char[] key, char[] value, int val
     } while (KvGotoNextKey(g_hWeaponConfig));
 
     return false;
+}
+
+// ============================================================================
+// >> 消音器变体武器判断(硬编码 weapon_m4a1/weapon_usp 两类)
+//    按主配置 classname 键判定(实体 useclassname 可能被改写)
+// ============================================================================
+bool IsVariantWeaponClass(const char[] origClass)
+{
+    char cls[64];
+    strcopy(cls, sizeof(cls), origClass);
+
+    if (StrContains(cls, "weapon_") == 0)
+        strcopy(cls, sizeof(cls), cls[7]);
+
+    return StrEqual(cls, "m4a1", false) || StrEqual(cls, "usp", false);
+}
+
+// ============================================================================
+// >> 运行时判断武器是否为消音器变体武器(实体存在 m_bSilencerOn 联网属性即算,
+//    该属性仅 m4a1/usp 类实体存在, 与主配置 classname 硬编码判定一致)
+// ============================================================================
+bool IsVariantWeapon(int weapon)
+{
+    return weapon > 0 && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_bSilencerOn");
+}
+
+// ============================================================================
+// >> 消音器是否装上(m_bSilencerOn==1; 仅变体武器有意义)
+// ============================================================================
+bool IsWeaponSilencerOn(int weapon)
+{
+    return IsVariantWeapon(weapon) && GetEntProp(weapon, Prop_Send, "m_bSilencerOn") == 1;
+}
+
+// ============================================================================
+// >> 是否为 usp 模板武器(按主配置 classname 字段 == weapon_usp 判定)
+//    用于 usp 特例回正: usp 引擎不会自动把 0号VM 回 idle, 需要主动写正确 idle
+// ============================================================================
+bool Weapon_IsUspTemplate(int weapon)
+{
+    if (weapon <= 0 || !IsValidEntity(weapon))
+        return false;
+
+    char className[64];
+    GetEntityClassname(weapon, className, sizeof(className));
+
+    for (int i = 0; i < g_WeaponCount; i++)
+    {
+        if (StrEqual(className, g_WeaponUseClassname[i], false))
+            return StrEqual(g_WeaponClassname[i], "weapon_usp", false);
+    }
+
+    return false;
+}
+
+// ============================================================================
+// >> 变体感知读取主配置值(消音器装上且变体字段填了 → 变体; 否则回落普通字段)
+// ============================================================================
+bool GetWeaponConfigValueVariant(int weapon, const char[] baseKey, char[] value, int valueLen)
+{
+    if (IsWeaponSilencerOn(weapon))
+    {
+        char variantKey[64];
+        Format(variantKey, sizeof(variantKey), "%s_silencer", baseKey);
+
+        if (GetWeaponConfigValue(weapon, variantKey, value, valueLen))
+            return true;
+    }
+
+    return GetWeaponConfigValue(weapon, baseKey, value, valueLen);
 }
 
 int GetWeaponTeam(int weaponEnt)

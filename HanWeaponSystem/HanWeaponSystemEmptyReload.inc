@@ -76,7 +76,7 @@ bool EmptyReload_OnWeaponReloadPost(int weapon)
         if (seq < 0)
             return false;
 
-        timeFrames = EmptyReload_GetInt(weapon, "emptyreloadtime", 0);
+        timeFrames = EmptyReload_GetIntVariant(weapon, "emptyreloadtime", 0);
         if (timing && timeFrames <= 0)
             timing = false;
 
@@ -94,7 +94,7 @@ bool EmptyReload_OnWeaponReloadPost(int weapon)
         if (seq < 0)
             return false;
 
-        timeFrames = EmptyReload_GetInt(weapon, "reloadtime", 0);
+        timeFrames = EmptyReload_GetIntVariant(weapon, "reloadtime", 0);
         if (timing && timeFrames <= 0)
             timing = false;
 
@@ -106,27 +106,11 @@ bool EmptyReload_OnWeaponReloadPost(int weapon)
 }
 
 // ============================================================================
-// >> 获取换弹动画序列号(消音器武器且配置了变体序列时用变体)
+// >> 获取换弹动画序列号(消音器武器且配置了变体序列时用变体, 否则回落普通字段)
 // ============================================================================
 int EmptyReload_GetSeq(int weapon, const char[] baseKey)
 {
-    int seq = EmptyReload_GetInt(weapon, baseKey, -1);
-    if (seq < 0)
-        return -1;
-
-    // 消音器状态(usp/m4a1等): 存在 m_bSilencerOn 且==1 时用变体序列
-    if (HasEntProp(weapon, Prop_Send, "m_bSilencerOn") && GetEntProp(weapon, Prop_Send, "m_bSilencerOn") == 1)
-    {
-        char variantKey[64];
-        strcopy(variantKey, sizeof(variantKey), baseKey);
-        Format(variantKey, sizeof(variantKey), "%s2", baseKey);
-
-        int variantSeq = EmptyReload_GetInt(weapon, variantKey, -1);
-        if (variantSeq >= 0)
-            return variantSeq;
-    }
-
-    return seq;
+    return EmptyReload_GetIntVariant(weapon, baseKey, -1);
 }
 
 // ============================================================================
@@ -152,6 +136,8 @@ void EmptyReload_End(int client)
     if (!g_bEmptyReloading[client])
         return;
 
+    int weapon = g_iEmptyReloadWeapon[client];
+
     g_bEmptyReloading[client] = false;
     g_iEmptyReloadWeapon[client] = -1;
     g_iEmptyReloadSeq[client] = -1;
@@ -161,12 +147,8 @@ void EmptyReload_End(int client)
     g_iEmptyReloadFps[client] = 0;
     g_fEmptyReloadStart[client] = 0.0;
 
-    // 恢复 VM[1] 到引擎原生序列(idle), 避免残留换弹序列最后一帧导致下次设同序列无法重播
-    if (ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]) &&
-        ClientVM[client][1] > 0 && IsValidEntity(ClientVM[client][1]))
-    {
-        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
-    }
+    // 恢复 idle; usp 模板武器引擎不回正, 主动写一次正确 idle(有消音=0/无消音=8)
+    ViewModel_RestoreIdle(client, weapon);
 }
 
 // ============================================================================
@@ -236,6 +218,7 @@ void EmptyReload_ApplyTiming(int client, int weapon)
         return;
 
     SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", endTime);
+
     SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", endTime);
     SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", endTime);
     SetEntPropFloat(client, Prop_Send, "m_flNextAttack", endTime);

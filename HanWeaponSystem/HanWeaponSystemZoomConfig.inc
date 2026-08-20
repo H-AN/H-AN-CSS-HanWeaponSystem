@@ -74,6 +74,10 @@ void WriteDefaultZoomConfig(const char[] path)
     WriteFileLine(file, "// sideaimcrosshair 1=侧瞄时隐藏准心 0=不隐藏");
     WriteFileLine(file, "// sideaimpunch    侧瞄时屏幕震动系数");
     WriteFileLine(file, "// sideaimskinadd  侧瞄镜片皮肤索引增量");
+    WriteFileLine(file, "//");
+    WriteFileLine(file, "// 消音器变体(仅变体武器 m4a1/usp; 装上消音器时生效, 不填回落普通字段):");
+    WriteFileLine(file, "// zoommodel_silencer/zoomanimmove_silencer/zoomanimtime_silencer/zoomanimfire_silencer");
+    WriteFileLine(file, "// sideaimmodel_silencer/sideaimanimmove_silencer/sideaimanimtime_silencer/sideaimanimfire_silencer");
     WriteFileLine(file, "\"HanWeaponSystem\"");
     WriteFileLine(file, "{");
     WriteFileLine(file, "}");
@@ -97,9 +101,10 @@ void SyncZoomConfig()
         WriteDefaultZoomConfig(cfgFile);
     }
 
-    // 收集主配置中的武器键名 + useclassname
+    // 收集主配置中的武器键名 + useclassname + classname(变体判定用)
     char weaponKeys[MAX_WEAPON][64];
     char weaponUse[MAX_WEAPON][64];
+    char weaponOrig[MAX_WEAPON][64];
     int total = 0;
 
     KvRewind(g_hWeaponConfig);
@@ -111,11 +116,14 @@ void SyncZoomConfig()
             KvGetSectionName(g_hWeaponConfig, name, sizeof(name));
             char useclass[64];
             KvGetString(g_hWeaponConfig, "useclassname", useclass, sizeof(useclass), "");
+            char origclass[64];
+            KvGetString(g_hWeaponConfig, "classname", origclass, sizeof(origclass), "");
 
             if (strlen(name) > 0 && total < MAX_WEAPON)
             {
                 strcopy(weaponKeys[total], sizeof(weaponKeys[]), name);
                 strcopy(weaponUse[total], sizeof(weaponUse[]), useclass);
+                strcopy(weaponOrig[total], sizeof(weaponOrig[]), origclass);
                 total++;
             }
         } while (KvGotoNextKey(g_hWeaponConfig));
@@ -132,6 +140,7 @@ void SyncZoomConfig()
 
     ArrayList missingKeys = new ArrayList(64);
     ArrayList missingUse = new ArrayList(64);
+    ArrayList missingOrig = new ArrayList(64);
 
     for (int i = 0; i < total; i++)
     {
@@ -155,6 +164,7 @@ void SyncZoomConfig()
         {
             missingKeys.PushString(weaponKeys[i]);
             missingUse.PushString(weaponUse[i]);
+            missingOrig.PushString(weaponOrig[i]);
         }
     }
     CloseHandle(zoomKv);
@@ -164,6 +174,7 @@ void SyncZoomConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         return;
     }
 
@@ -174,6 +185,7 @@ void SyncZoomConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -201,6 +213,7 @@ void SyncZoomConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -215,9 +228,10 @@ void SyncZoomConfig()
         {
             for (int m = 0; m < missingKeys.Length; m++)
             {
-                char key[64], use[64];
+                char key[64], use[64], orig[64];
                 missingKeys.GetString(m, key, sizeof(key));
                 missingUse.GetString(m, use, sizeof(use));
+                missingOrig.GetString(m, orig, sizeof(orig));
 
                 WriteFileLine(outFile, "");
                 WriteFileLine(outFile, "    \"%s\"", key);
@@ -247,6 +261,20 @@ void SyncZoomConfig()
                 WriteFileLine(outFile, "        // \"sideaimcrosshair\" \"1\"");
                 WriteFileLine(outFile, "        // \"sideaimpunch\"    \"1.0\"");
                 WriteFileLine(outFile, "        // \"sideaimskinadd\"  \"0\"");
+
+                if (IsVariantWeaponClass(orig))
+                {
+                    WriteFileLine(outFile, "        // 消音器变体(仅变体武器 m4a1/usp, 装上消音器时生效; 不填=回落普通字段):");
+                    WriteFileLine(outFile, "        // \"zoommodel_silencer\"       \"models/v_custom/v_m4a1_aim_sil.mdl\"");
+                    WriteFileLine(outFile, "        // \"zoomanimmove_silencer\"    \"7\"");
+                    WriteFileLine(outFile, "        // \"zoomanimtime_silencer\"    \"0.4\"");
+                    WriteFileLine(outFile, "        // \"zoomanimfire_silencer\"    \"0\"");
+                    WriteFileLine(outFile, "        // \"sideaimmodel_silencer\"    \"models/v_custom/v_m4a1_side_sil.mdl\"");
+                    WriteFileLine(outFile, "        // \"sideaimanimmove_silencer\" \"9\"");
+                    WriteFileLine(outFile, "        // \"sideaimanimtime_silencer\" \"0.3\"");
+                    WriteFileLine(outFile, "        // \"sideaimanimfire_silencer\" \"0\"");
+                }
+
                 WriteFileLine(outFile, "    }");
             }
         }
@@ -257,6 +285,7 @@ void SyncZoomConfig()
 
     delete missingKeys;
     delete missingUse;
+    delete missingOrig;
     delete lines;
 
     PrintToServer("[HWS] 机瞄配置已同步 %d 个缺失武器", synced);
@@ -317,6 +346,17 @@ void PrecacheZoomModels()
             PrecacheModel(model);
 
         KvGetString(g_hZoomConfig, "sideaimmodel", model, sizeof(model), "");
+        NormalizePath(model);
+        if (strlen(model) > 0)
+            PrecacheModel(model);
+
+        // 消音器变体机瞄/侧瞄模型: 填了才预缓存, 缺失不预缓存(回落普通字段)
+        KvGetString(g_hZoomConfig, "zoommodel_silencer", model, sizeof(model), "");
+        NormalizePath(model);
+        if (strlen(model) > 0)
+            PrecacheModel(model);
+
+        KvGetString(g_hZoomConfig, "sideaimmodel_silencer", model, sizeof(model), "");
         NormalizePath(model);
         if (strlen(model) > 0)
             PrecacheModel(model);

@@ -108,10 +108,11 @@ bool Zoom_IsNoAmmoWeapon(int weapon)
 }
 
 // ============================================================================
-// >> 判断武器是否基于引擎原生右键开镜的脚本(awp/scout)
+// >> 判断武器是否右键被占用的脚本(原生开镜 awp/scout + 消音切换 m4a1/usp)
 //    实体 classname 已被改写为 useclassname(如 weapon_awm)，须按 useclassname
-//    反查主配置的 classname 键，原始脚本为 weapon_awp/weapon_scout 才算。
-//    这两把武器右键自带瞄准镜，机瞄不生效(填写zoom直接无效)，侧瞄由中键(IN_ATTACK3)触发
+//    反查主配置的 classname 键，原始脚本为 weapon_awp/weapon_scout/weapon_m4a1/weapon_usp 才算。
+//    这些武器右键被引擎占用(自带瞄准镜/消音切换)，机瞄不生效(填写zoom直接无效)，
+//    侧瞄由中键(IN_ATTACK3)触发; autofire 也自动失效(右键被占用)
 // ============================================================================
 bool Zoom_IsNativeScopeWeapon(int weapon)
 {
@@ -144,7 +145,8 @@ bool Zoom_IsNativeScopeWeapon(int weapon)
             if (StrContains(origClass, "weapon_") == 0)
                 strcopy(origClass, sizeof(origClass), origClass[7]);
 
-            return (StrEqual(origClass, "awp", false) || StrEqual(origClass, "scout", false));
+            return (StrEqual(origClass, "awp", false) || StrEqual(origClass, "scout", false) ||
+                StrEqual(origClass, "m4a1", false) || StrEqual(origClass, "usp", false));
         }
 
     } while (KvGotoNextKey(g_hWeaponConfig));
@@ -272,14 +274,44 @@ float Aim_GetFloat(int weapon, const char[] prefix, const char[] suffix, float d
     return Zoom_GetFloat(weapon, key, def);
 }
 
+// ============================================================================
+// >> 变体感知整型读取(仅动画/模型类字段使用; 数值手感字段请用 Aim_GetInt 共享)
+// ============================================================================
+int Aim_GetIntVariant(int weapon, const char[] prefix, const char[] suffix, int def)
+{
+    char variantKey[64];
+    Format(variantKey, sizeof(variantKey), "%s%s_silencer", prefix, suffix);
+
+    int variantVal = Zoom_GetInt(weapon, variantKey, -1);
+    if (IsWeaponSilencerOn(weapon) && variantVal >= 0)
+        return variantVal;
+
+    return Aim_GetInt(weapon, prefix, suffix, def);
+}
+
+// ============================================================================
+// >> 变体感知浮点读取(消音器装上且变体字段>0才用, 否则回落普通字段)
+// ============================================================================
+float Aim_GetFloatVariant(int weapon, const char[] prefix, const char[] suffix, float def)
+{
+    char variantKey[64];
+    Format(variantKey, sizeof(variantKey), "%s%s_silencer", prefix, suffix);
+
+    float variantVal = Zoom_GetFloat(weapon, variantKey, 0.0);
+    if (IsWeaponSilencerOn(weapon) && variantVal > 0.0)
+        return variantVal;
+
+    return Aim_GetFloat(weapon, prefix, suffix, def);
+}
+
 int Aim_GetAnimMove(int weapon, const char[] prefix)
 {
-    return Aim_GetInt(weapon, prefix, "animmove", -1);
+    return Aim_GetIntVariant(weapon, prefix, "animmove", -1);
 }
 
 float Aim_GetAnimTime(int weapon, const char[] prefix)
 {
-    return Aim_GetFloat(weapon, prefix, "animtime", 0.0);
+    return Aim_GetFloatVariant(weapon, prefix, "animtime", 0.0);
 }
 
 // ============================================================================
@@ -371,7 +403,23 @@ void ApplyAimModel(int client, int weapon, const char[] prefix, bool isSideAim)
     char key[64];
     Format(key, sizeof(key), "%smodel", prefix);
 
-    if (!GetZoomConfigValue(weapon, key, aimModel, sizeof(aimModel)) || strlen(aimModel) == 0)
+    // 消音器变体模型: 装上且填了 → 变体; 否则回落普通模型
+    bool gotModel = false;
+    if (IsWeaponSilencerOn(weapon))
+    {
+        char variantKey[64];
+        Format(variantKey, sizeof(variantKey), "%s_silencer", key);
+
+        gotModel = GetZoomConfigValue(weapon, variantKey, aimModel, sizeof(aimModel));
+        if (!gotModel || strlen(aimModel) == 0)
+            gotModel = GetZoomConfigValue(weapon, key, aimModel, sizeof(aimModel));
+    }
+    else
+    {
+        gotModel = GetZoomConfigValue(weapon, key, aimModel, sizeof(aimModel));
+    }
+
+    if (!gotModel || strlen(aimModel) == 0)
     {
         ForceExitAimMode(client, isSideAim);
         return;

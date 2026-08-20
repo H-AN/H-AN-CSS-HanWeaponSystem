@@ -64,15 +64,19 @@ void WriteDefaultEmptyReloadConfig(const char[] path)
     WriteFileLine(file, "// useclassname     对应主配置的武器 useclassname(自动复制)");
     WriteFileLine(file, "// emptyreload      1=启用空仓换弹 0=关闭");
     WriteFileLine(file, "// emptyreloadseq   空仓换弹动画序列号(弹匣打空时)");
-    WriteFileLine(file, "// emptyreloadseq2  空仓换弹·消音器变体序列号(无消音器武器不填)");
+    WriteFileLine(file, "// emptyreloadseq_silencer  空仓换弹·消音器变体序列号(仅变体武器 m4a1/usp; 装上消音器时生效, 不填回落普通字段)");
     WriteFileLine(file, "// emptyreloadtime  空仓换弹动画时长(帧, 按fps换算秒)");
+    WriteFileLine(file, "// emptyreloadtime_silencer 空仓换弹·消音器变体时长(帧)");
     WriteFileLine(file, "// emptyreloadsound 空仓换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放空仓换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒; 自动随reloadspeed对齐; 不填则不播)");
+    WriteFileLine(file, "// emptyreloadsound_silencer 空仓换弹·消音器变体音效(格式同上)");
     WriteFileLine(file, "// reloadfps        换弹动画帧率(默认30, 动画帧率不同的武器按需改24等)");
     WriteFileLine(file, "// tacticalreload   1=启用战术换弹 0=关闭");
     WriteFileLine(file, "// reloadseq        战术换弹动画序列号(弹匣还有子弹时)");
-    WriteFileLine(file, "// reloadseq2       战术换弹·消音器变体序列号(无消音器武器不填)");
+    WriteFileLine(file, "// reloadseq_silencer  战术换弹·消音器变体序列号(仅变体武器 m4a1/usp; 装上消音器时生效, 不填回落普通字段)");
     WriteFileLine(file, "// reloadtime       战术换弹动画时长(帧, 按fps换算秒)");
+    WriteFileLine(file, "// reloadtime_silencer  战术换弹·消音器变体时长(帧)");
     WriteFileLine(file, "// tacticalreloadsound 战术换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放战术换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒; 自动随reloadspeed对齐; 不填则不播)");
+    WriteFileLine(file, "// tacticalreloadsound_silencer 战术换弹·消音器变体音效(格式同上)");
     WriteFileLine(file, "\"HanWeaponSystem\"");
     WriteFileLine(file, "{");
     WriteFileLine(file, "}");
@@ -96,9 +100,10 @@ void SyncEmptyReloadConfig()
         WriteDefaultEmptyReloadConfig(cfgFile);
     }
 
-    // 收集主配置中的武器键名 + useclassname
+    // 收集主配置中的武器键名 + useclassname + classname(变体判定用)
     char weaponKeys[MAX_WEAPON][64];
     char weaponUse[MAX_WEAPON][64];
+    char weaponOrig[MAX_WEAPON][64];
     int total = 0;
 
     KvRewind(g_hWeaponConfig);
@@ -110,11 +115,14 @@ void SyncEmptyReloadConfig()
             KvGetSectionName(g_hWeaponConfig, name, sizeof(name));
             char useclass[64];
             KvGetString(g_hWeaponConfig, "useclassname", useclass, sizeof(useclass), "");
+            char origclass[64];
+            KvGetString(g_hWeaponConfig, "classname", origclass, sizeof(origclass), "");
 
             if (strlen(name) > 0 && total < MAX_WEAPON)
             {
                 strcopy(weaponKeys[total], sizeof(weaponKeys[]), name);
                 strcopy(weaponUse[total], sizeof(weaponUse[]), useclass);
+                strcopy(weaponOrig[total], sizeof(weaponOrig[]), origclass);
                 total++;
             }
         } while (KvGotoNextKey(g_hWeaponConfig));
@@ -151,6 +159,7 @@ void SyncEmptyReloadConfig()
     // 找出缺失的武器键组
     ArrayList missingKeys = new ArrayList(64);
     ArrayList missingUse = new ArrayList(64);
+    ArrayList missingOrig = new ArrayList(64);
 
     for (int i = 0; i < total; i++)
     {
@@ -158,6 +167,7 @@ void SyncEmptyReloadConfig()
         {
             missingKeys.PushString(weaponKeys[i]);
             missingUse.PushString(weaponUse[i]);
+            missingOrig.PushString(weaponOrig[i]);
         }
     }
     delete existingSections;
@@ -167,6 +177,7 @@ void SyncEmptyReloadConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         return;
     }
 
@@ -177,6 +188,7 @@ void SyncEmptyReloadConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -204,6 +216,7 @@ void SyncEmptyReloadConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -218,9 +231,10 @@ void SyncEmptyReloadConfig()
         {
             for (int m = 0; m < missingKeys.Length; m++)
             {
-                char key[64], use[64];
+                char key[64], use[64], orig[64];
                 missingKeys.GetString(m, key, sizeof(key));
                 missingUse.GetString(m, use, sizeof(use));
+                missingOrig.GetString(m, orig, sizeof(orig));
 
                 WriteFileLine(outFile, "");
                 WriteFileLine(outFile, "    \"%s\"", key);
@@ -229,17 +243,27 @@ void SyncEmptyReloadConfig()
                 WriteFileLine(outFile, "        \"emptyreload\"     \"0\"");
                 WriteFileLine(outFile, "        // 空仓换弹参数(仅 emptyreload 1 时生效):");
                 WriteFileLine(outFile, "        // \"emptyreloadseq\"   \"5\"");
-                WriteFileLine(outFile, "        // \"emptyreloadseq2\"  \"6\"  // (消音器变体)");
                 WriteFileLine(outFile, "        // \"emptyreloadtime\"  \"280\"  // (动画时长, 帧)");
                 WriteFileLine(outFile, "        // \"emptyreloadsound\" \"0:weapons/ak47/magout.wav,45:weapons/ak47/insert.wav,70:weapons/ak47/bolt.wav\"  // (帧号:路径, HLMV看动画填; 不填则不播)");
                 WriteFileLine(outFile, "        // \"reloadfps\"        \"30\"  // (动画帧率, 按需改24)");
                 WriteFileLine(outFile, "        \"tacticalreload\"   \"0\"");
                 WriteFileLine(outFile, "        // 战术换弹参数(仅 tacticalreload 1 时生效):");
                 WriteFileLine(outFile, "        // \"reloadseq\"        \"7\"");
-                WriteFileLine(outFile, "        // \"reloadseq2\"       \"8\"  // (消音器变体)");
                 WriteFileLine(outFile, "        // \"reloadtime\"       \"240\"  // (动画时长, 帧)");
                 WriteFileLine(outFile, "        // \"tacticalreloadsound\" \"0:weapons/ak47/magout.wav,45:weapons/ak47/insert.wav,70:weapons/ak47/bolt.wav\"  // (帧号:路径, HLMV看动画填; 不填则不播)");
                 WriteFileLine(outFile, "        // \"reloadfps\"        \"30\"  // (动画帧率, 按需改24)");
+
+                if (IsVariantWeaponClass(orig))
+                {
+                    WriteFileLine(outFile, "        // 消音器变体(仅变体武器 m4a1/usp, 装上消音器时生效; 不填=回落普通字段):");
+                    WriteFileLine(outFile, "        // \"emptyreloadseq_silencer\"   \"6\"");
+                    WriteFileLine(outFile, "        // \"emptyreloadtime_silencer\"  \"300\"  // (帧)");
+                    WriteFileLine(outFile, "        // \"emptyreloadsound_silencer\" \"0:weapons/m4a1/magout_sil.wav,45:weapons/m4a1/insert_sil.wav\"  // (帧号:路径, 不填则不播)");
+                    WriteFileLine(outFile, "        // \"reloadseq_silencer\"        \"8\"");
+                    WriteFileLine(outFile, "        // \"reloadtime_silencer\"       \"260\"  // (帧)");
+                    WriteFileLine(outFile, "        // \"tacticalreloadsound_silencer\" \"0:weapons/m4a1/magout_sil.wav\"  // (帧号:路径, 不填则不播)");
+                }
+
                 WriteFileLine(outFile, "    }");
             }
         }
@@ -250,6 +274,7 @@ void SyncEmptyReloadConfig()
 
     delete missingKeys;
     delete missingUse;
+    delete missingOrig;
     delete lines;
 
     PrintToServer("[HWS] 空仓/战术换弹配置已同步 %d 个缺失武器", synced);
@@ -372,6 +397,13 @@ void PrecacheEmptyReloadSounds()
 
         KvGetString(g_hEmptyReloadConfig, "tacticalreloadsound", soundStr, sizeof(soundStr), "");
         PrecacheReloadSoundList(soundStr);
+
+        // 消音器变体音效: 填了才预缓存, 缺失不预缓存(回落普通字段)
+        KvGetString(g_hEmptyReloadConfig, "emptyreloadsound_silencer", soundStr, sizeof(soundStr), "");
+        PrecacheReloadSoundList(soundStr);
+
+        KvGetString(g_hEmptyReloadConfig, "tacticalreloadsound_silencer", soundStr, sizeof(soundStr), "");
+        PrecacheReloadSoundList(soundStr);
     } while (KvGotoNextKey(g_hEmptyReloadConfig));
 
     KvRewind(g_hEmptyReloadConfig);
@@ -443,4 +475,36 @@ int EmptyReload_GetInt(int weapon, const char[] key, int def)
     if (GetEmptyReloadConfigValue(weapon, key, buf, sizeof(buf)))
         return StringToInt(buf);
     return def;
+}
+
+// ============================================================================
+// >> 变体感知读取空仓/战术换弹配置整型值(消音器装上且变体字段填了 → 变体; 否则回落普通字段)
+// ============================================================================
+int EmptyReload_GetIntVariant(int weapon, const char[] key, int def)
+{
+    char variantKey[64];
+    Format(variantKey, sizeof(variantKey), "%s_silencer", key);
+
+    int variantVal = EmptyReload_GetInt(weapon, variantKey, -1);
+    if (IsWeaponSilencerOn(weapon) && variantVal >= 0)
+        return variantVal;
+
+    return EmptyReload_GetInt(weapon, key, def);
+}
+
+// ============================================================================
+// >> 变体感知读取空仓/战术换弹配置字符串值
+// ============================================================================
+bool GetEmptyReloadConfigValueVariant(int weapon, const char[] baseKey, char[] value, int valueLen)
+{
+    if (IsWeaponSilencerOn(weapon))
+    {
+        char variantKey[64];
+        Format(variantKey, sizeof(variantKey), "%s_silencer", baseKey);
+
+        if (GetEmptyReloadConfigValue(weapon, variantKey, value, valueLen))
+            return true;
+    }
+
+    return GetEmptyReloadConfigValue(weapon, baseKey, value, valueLen);
 }

@@ -66,6 +66,7 @@ void WriteDefaultInspectConfig(const char[] path)
     WriteFileLine(file, "// inspectrepeat      0=检视一次播完为止 1=允许反复按F从动画开头重播(好玩向)");
     WriteFileLine(file, "// inspectflashlight  0=检视时手电筒正常发光 1=检视时屏蔽手电筒光");
     WriteFileLine(file, "// inspectsound       检视音效(可缺省不填=不播放); 多个用英文逗号隔开随机播其中一个; 只自己听得见");
+    WriteFileLine(file, "// inspectseq_silencer/inspecttime_silencer/inspectsound_silencer: 消音器变体(仅变体武器 m4a1/usp); 装上消音器时生效, 不填回落普通字段");
     WriteFileLine(file, "\"HanWeaponSystem\"");
     WriteFileLine(file, "{");
     WriteFileLine(file, "}");
@@ -89,9 +90,10 @@ void SyncInspectConfig()
         WriteDefaultInspectConfig(cfgFile);
     }
 
-    // 收集主配置中的武器键名 + useclassname
+    // 收集主配置中的武器键名 + useclassname + classname(变体判定用)
     char weaponKeys[MAX_WEAPON][64];
     char weaponUse[MAX_WEAPON][64];
+    char weaponOrig[MAX_WEAPON][64];
     int total = 0;
 
     KvRewind(g_hWeaponConfig);
@@ -103,11 +105,14 @@ void SyncInspectConfig()
             KvGetSectionName(g_hWeaponConfig, name, sizeof(name));
             char useclass[64];
             KvGetString(g_hWeaponConfig, "useclassname", useclass, sizeof(useclass), "");
+            char origclass[64];
+            KvGetString(g_hWeaponConfig, "classname", origclass, sizeof(origclass), "");
 
             if (strlen(name) > 0 && total < MAX_WEAPON)
             {
                 strcopy(weaponKeys[total], sizeof(weaponKeys[]), name);
                 strcopy(weaponUse[total], sizeof(weaponUse[]), useclass);
+                strcopy(weaponOrig[total], sizeof(weaponOrig[]), origclass);
                 total++;
             }
         } while (KvGotoNextKey(g_hWeaponConfig));
@@ -124,6 +129,7 @@ void SyncInspectConfig()
 
     ArrayList missingKeys = new ArrayList(64);
     ArrayList missingUse = new ArrayList(64);
+    ArrayList missingOrig = new ArrayList(64);
 
     for (int i = 0; i < total; i++)
     {
@@ -147,6 +153,7 @@ void SyncInspectConfig()
         {
             missingKeys.PushString(weaponKeys[i]);
             missingUse.PushString(weaponUse[i]);
+            missingOrig.PushString(weaponOrig[i]);
         }
     }
     CloseHandle(inspectKv);
@@ -156,6 +163,7 @@ void SyncInspectConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         return;
     }
 
@@ -166,6 +174,7 @@ void SyncInspectConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -193,6 +202,7 @@ void SyncInspectConfig()
     {
         delete missingKeys;
         delete missingUse;
+        delete missingOrig;
         delete lines;
         return;
     }
@@ -207,9 +217,10 @@ void SyncInspectConfig()
         {
             for (int m = 0; m < missingKeys.Length; m++)
             {
-                char key[64], use[64];
+                char key[64], use[64], orig[64];
                 missingKeys.GetString(m, key, sizeof(key));
                 missingUse.GetString(m, use, sizeof(use));
+                missingOrig.GetString(m, orig, sizeof(orig));
 
                 WriteFileLine(outFile, "");
                 WriteFileLine(outFile, "    \"%s\"", key);
@@ -222,6 +233,15 @@ void SyncInspectConfig()
                 WriteFileLine(outFile, "        // \"inspectrepeat\"     \"0\"");
                 WriteFileLine(outFile, "        // \"inspectflashlight\" \"1\"");
                 WriteFileLine(outFile, "        // \"inspectsound\"      \"weapons/inspect/inspect1.wav,weapons/inspect/inspect2.wav\"");
+
+                if (IsVariantWeaponClass(orig))
+                {
+                    WriteFileLine(outFile, "        // 消音器变体(仅变体武器 m4a1/usp, 装上消音器时生效; 不填=回落普通字段):");
+                    WriteFileLine(outFile, "        // \"inspectseq_silencer\"   \"7\"");
+                    WriteFileLine(outFile, "        // \"inspecttime_silencer\"  \"240\"  // (帧)");
+                    WriteFileLine(outFile, "        // \"inspectsound_silencer\" \"weapons/inspect/m4a1_sil.wav\"");
+                }
+
                 WriteFileLine(outFile, "    }");
             }
         }
@@ -232,6 +252,7 @@ void SyncInspectConfig()
 
     delete missingKeys;
     delete missingUse;
+    delete missingOrig;
     delete lines;
 
     PrintToServer("[HWS] 检视配置已同步 %d 个缺失武器", synced);
@@ -307,6 +328,41 @@ void PrecacheInspectSounds()
 
     } while (KvGotoNextKey(g_hInspectConfig));
 
+    // 消音器变体检视音效: 填了才预缓存, 缺失不预缓存(回落普通字段)
+    KvRewind(g_hInspectConfig);
+    if (KvGotoFirstSubKey(g_hInspectConfig))
+    {
+        do
+        {
+            char soundStr[512];
+            KvGetString(g_hInspectConfig, "inspectsound_silencer", soundStr, sizeof(soundStr), "");
+            if (strlen(soundStr) == 0)
+                continue;
+
+            char parts[8][PLATFORM_MAX_PATH];
+            int count = ExplodeString(soundStr, ",", parts, sizeof(parts), sizeof(parts[]));
+
+            for (int i = 0; i < count; i++)
+            {
+                TrimString(parts[i]);
+                if (strlen(parts[i]) == 0)
+                    continue;
+
+                char pair[2][PLATFORM_MAX_PATH];
+                if (ExplodeString(parts[i], ":", pair, sizeof(pair), sizeof(pair[])) == 2 && IsNumericString(pair[0]))
+                {
+                    NormalizePath(pair[1]);
+                    PrecacheSound(pair[1]);
+                }
+                else
+                {
+                    NormalizePath(parts[i]);
+                    PrecacheSound(parts[i]);
+                }
+            }
+        } while (KvGotoNextKey(g_hInspectConfig));
+    }
+
     KvRewind(g_hInspectConfig);
 }
 
@@ -354,4 +410,36 @@ int Inspect_GetInt(int weapon, const char[] key, int def)
     if (GetInspectConfigValue(weapon, key, buf, sizeof(buf)))
         return StringToInt(buf);
     return def;
+}
+
+// ============================================================================
+// >> 变体感知读取检视配置整型值(消音器装上且变体字段填了 → 变体; 否则回落普通字段)
+// ============================================================================
+int Inspect_GetIntVariant(int weapon, const char[] key, int def)
+{
+    char variantKey[64];
+    Format(variantKey, sizeof(variantKey), "%s_silencer", key);
+
+    int variantVal = Inspect_GetInt(weapon, variantKey, -1);
+    if (IsWeaponSilencerOn(weapon) && variantVal >= 0)
+        return variantVal;
+
+    return Inspect_GetInt(weapon, key, def);
+}
+
+// ============================================================================
+// >> 变体感知读取检视配置字符串值
+// ============================================================================
+bool GetInspectConfigValueVariant(int weapon, const char[] baseKey, char[] value, int valueLen)
+{
+    if (IsWeaponSilencerOn(weapon))
+    {
+        char variantKey[64];
+        Format(variantKey, sizeof(variantKey), "%s_silencer", baseKey);
+
+        if (GetInspectConfigValue(weapon, variantKey, value, valueLen))
+            return true;
+    }
+
+    return GetInspectConfigValue(weapon, baseKey, value, valueLen);
 }

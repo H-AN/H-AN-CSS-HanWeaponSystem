@@ -70,6 +70,41 @@ public void OnEntitySpawned(int entity)
 }
 
 // ============================================================================
+// >> 消音器切换检测(边沿): 消音器装上/取下瞬间强制退出机瞄/侧瞄/检视/奔跑
+//    并重挂世界模型(消音/未消音模型切换)。非变体武器直接跳过。
+//    换弹途中引擎天然禁止消音操作, 无需处理。
+// ============================================================================
+void ViewModel_CheckSilencerToggle(int client, int weapon)
+{
+    if (!IsVariantWeapon(weapon))
+    {
+        g_bPrevSilencer[client] = false;
+        return;
+    }
+
+    bool on = GetEntProp(weapon, Prop_Send, "m_bSilencerOn") == 1;
+    if (on == g_bPrevSilencer[client])
+        return;
+
+    g_bPrevSilencer[client] = on;
+
+    // 强制退出开镜(机瞄/侧瞄)
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0)
+        Aim_ForceExit(client);
+
+    // 强制退出检视
+    if (g_bInspecting[client])
+        Inspect_End(client);
+
+    // 强制退出奔跑
+    if (g_iRunStage[client] != RUN_STAGE_NONE)
+        Run_End(client);
+
+    // 重挂世界模型(消音/未消音模型切换; 与引擎自身切模型可能共存, 待上服验证)
+    ApplyWeaponWorldModel(weapon);
+}
+
+// ============================================================================
 // >> 每帧处理(核心: 模型切换 + 动画同步 + 机瞄)
 // ============================================================================
 public void OnPostThinkPost(int client)
@@ -255,24 +290,27 @@ public void OnPostThinkPost(int client)
 
             SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", PlaybackRate);
 
-            // 刀类动画修复: cycle 回绕时强制显示 0 号序列数帧
-            if ((Cycle < OldCycle[client]) && (Sequence == OldSequence[client]))
+            // 刀类动画修复: cycle 回绕时强制显示 0 号序列数帧(消音器变体武器 m4a1/usp模板 跳过, 避免强制显示有消音器 idle=seq0)
+            if (!IsVariantWeapon(WeaponIndex))
             {
-                Data[client] = 5;
-                SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", 0);
-            }
-            else if (Sequence == OldSequence[client])
-            {
-                if (Data[client] > 0)
+                if ((Cycle < OldCycle[client]) && (Sequence == OldSequence[client]))
                 {
-                    Data[client] -= 1;
+                    Data[client] = 5;
                     SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", 0);
+                }
+                else if (Sequence == OldSequence[client])
+                {
+                    if (Data[client] > 0)
+                    {
+                        Data[client] -= 1;
+                        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", 0);
+                    }
+                    else if (Data[client])
+                        Data[client] = 0;
                 }
                 else if (Data[client])
                     Data[client] = 0;
             }
-            else if (Data[client])
-                Data[client] = 0;
         }
         else if (IsCustom2[client])
         {
@@ -287,23 +325,27 @@ public void OnPostThinkPost(int client)
 
             SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", PlaybackRate);
 
-            if ((Cycle < OldCycle[client]) && (Sequence == OldSequence[client]))
+            // 消音器变体武器 m4a1/usp模板 跳过 seq0 回绕, 避免强制显示有消音器 idle=seq0
+            if (!IsVariantWeapon(WeaponIndex))
             {
-                Data[client] = 5;
-                SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", 0);
-            }
-            else if (Sequence == OldSequence[client])
-            {
-                if (Data[client] > 0)
+                if ((Cycle < OldCycle[client]) && (Sequence == OldSequence[client]))
                 {
-                    Data[client] -= 1;
+                    Data[client] = 5;
                     SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", 0);
+                }
+                else if (Sequence == OldSequence[client])
+                {
+                    if (Data[client] > 0)
+                    {
+                        Data[client] -= 1;
+                        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", 0);
+                    }
+                    else if (Data[client])
+                        Data[client] = 0;
                 }
                 else if (Data[client])
                     Data[client] = 0;
             }
-            else if (Data[client])
-                Data[client] = 0;
         }
     }
 
@@ -322,6 +364,10 @@ public void OnPostThinkPost(int client)
     OldWeapon[client] = WeaponIndex;
     OldSequence[client] = Sequence;
     OldCycle[client] = Cycle;
+
+    // 消音器切换检测(边沿): 切换瞬间强制退出机瞄/侧瞄/检视/奔跑 + 重挂W模型
+    // 换弹途中引擎天然禁止消音操作, 无需处理
+    ViewModel_CheckSilencerToggle(client, WeaponIndex);
 
     // 机瞄后处理(屏震降低/衔接提前结束)
     Zoom_OnPostThinkPost(client);
@@ -442,4 +488,33 @@ public Action OnTransmit(int entity, int viewer)
         return Plugin_Handled;
     }
     return Plugin_Continue;
+}
+
+// ============================================================================
+// >> 接管结束恢复 idle(同步 1号VM)
+//    usp 模板武器: 引擎不会自动把 0号VM 回正 idle, 主动写一次正确 idle 再同步 1号VM
+//    (usp 模型序列布局 0~7=有消音器块 / 8~15=无消音器块, idle 有=0 无=8)
+//    其他武器: 镜像 0号VM 引擎序列(引擎会自动回正 idle)
+// ============================================================================
+void ViewModel_RestoreIdle(int client, int weapon)
+{
+    if (ClientVM[client][0] <= 0 || !IsValidEntity(ClientVM[client][0]) ||
+        ClientVM[client][1] <= 0 || !IsValidEntity(ClientVM[client][1]))
+        return;
+
+    if (weapon > 0 && IsValidEntity(weapon) && Weapon_IsUspTemplate(weapon))
+    {
+        int idle = IsWeaponSilencerOn(weapon) ? 0 : 8;
+
+        SetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence", idle);
+        SetEntPropFloat(ClientVM[client][0], Prop_Data, "m_flCycle", 0.0);
+        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", idle);
+        SetEntPropFloat(ClientVM[client][1], Prop_Data, "m_flCycle", 0.0);
+        SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", 1.0);
+        return;
+    }
+
+    // 普通武器: 镜像 0号VM 引擎序列(引擎会自动回正 idle)
+    SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
+    SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", 1.0);
 }

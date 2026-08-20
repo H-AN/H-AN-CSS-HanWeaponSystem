@@ -53,7 +53,7 @@ bool Run_IsWeaponRunable(int weapon)
 // ============================================================================
 float Run_GetCycleTime(int weapon)
 {
-    int runtime = Run_GetInt(weapon, "runtime", 15);
+    int runtime = Run_GetIntVariant(weapon, "runtime", 15);
     if (runtime <= 0)
         runtime = 15;
     return runtime / 30.0;
@@ -257,8 +257,8 @@ void Run_Start(int client)
     if (weapon <= 0)
         return;
 
-    int runin = Run_GetInt(weapon, "runin", -1);
-    int runinlen = Run_GetInt(weapon, "runinlength", 0);
+    int runin = Run_GetIntVariant(weapon, "runin", -1);
+    int runinlen = Run_GetIntVariant(weapon, "runinlength", 0);
 
     g_iRunWeapon[client] = weapon;
     g_bRunFrame[client] = false;
@@ -303,8 +303,8 @@ void Run_Stop(int client)
     int runout = -1, runoutlen = 0;
     if (weapon > 0)
     {
-        runout = Run_GetInt(weapon, "runout", -1);
-        runoutlen = Run_GetInt(weapon, "runoutlength", 0);
+        runout = Run_GetIntVariant(weapon, "runout", -1);
+        runoutlen = Run_GetIntVariant(weapon, "runoutlength", 0);
     }
 
     if (runout >= 0 && runoutlen > 0)
@@ -338,15 +338,10 @@ void Run_End(int client)
 
     // 推力为叠加式, 停止后引擎自然减速, 无需恢复
 
-    // 恢复 VM[1] 到引擎原生序列(idle)
-    if (ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]) &&
-        ClientVM[client][1] > 0 && IsValidEntity(ClientVM[client][1]))
-    {
-        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
-        SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", 1.0);
-    }
-
+    // 恢复 idle; usp 模板武器引擎不回正, 主动写一次正确 idle(有消音=0/无消音=8)
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    ViewModel_RestoreIdle(client, weapon);
+
     if (weapon > 0)
     {
         SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", GetGameTime());
@@ -424,7 +419,7 @@ void Run_OnPostThinkPost(int client)
                 g_bRunFrame[client] = !g_bRunFrame[client];
             }
 
-            int runseq = Run_GetInt(weapon, "runseq", -1);
+            int runseq = Run_GetIntVariant(weapon, "runseq", -1);
             if (runseq >= 0)
             {
                 int seq = runseq + (g_bRunFrame[client] ? 1 : 0);
@@ -435,7 +430,7 @@ void Run_OnPostThinkPost(int client)
 
         case RUN_STAGE_OUT:
         {
-            int runout = Run_GetInt(weapon, "runout", -1);
+            int runout = Run_GetIntVariant(weapon, "runout", -1);
             if (runout >= 0)
             {
                 SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", runout);

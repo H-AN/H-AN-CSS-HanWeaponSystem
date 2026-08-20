@@ -1,4 +1,4 @@
-#define VERSION "7.2"
+#define VERSION "7.4"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -21,6 +21,8 @@ int ClientVM[MAXPLAYERS + 1][2];
 bool IsCustom[MAXPLAYERS + 1];
 bool IsCustom2[MAXPLAYERS + 1];
 bool g_bVM0BlockHooked[MAXPLAYERS + 1];     // 0号VM 传输屏蔽钩子是否已挂(新武器保险用)
+
+bool g_bPrevSilencer[MAXPLAYERS + 1];       // 消音器状态上一帧值(边沿检测: 切换时强制退镜/奔跑/检视 + 重挂W模型)
 
 float g_fModifyNextAttack[MAXPLAYERS + 1];
 bool g_bPressingAttack2[MAXPLAYERS + 1];

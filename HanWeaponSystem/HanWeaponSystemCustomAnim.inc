@@ -88,16 +88,11 @@ void CustomAnim_End(int client)
     // 广播结束事件(含被打断/切枪/死亡, 供外部插件停止伤害/效果逻辑)
     CustomAnim_FireForwardEnd(client);
 
-    // 恢复 VM[1] 到引擎原生序列(idle)
-    if (ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]) &&
-        ClientVM[client][1] > 0 && IsValidEntity(ClientVM[client][1]))
-    {
-        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
-        SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", 1.0);
-    }
+    // 恢复 idle; usp 模板武器引擎不回正, 主动写一次正确 idle(有消音=0/无消音=8)
+    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    ViewModel_RestoreIdle(client, weapon);
 
     // 换弹/换枪期间不重置武器空闲计时, 交给引擎节奏
-    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
     if (weapon > 0 &&
         !Weapon_IsReloading(weapon) &&
         !(HasEntProp(weapon, Prop_Send, "m_reloadState") && GetEntProp(weapon, Prop_Send, "m_reloadState") > 0))

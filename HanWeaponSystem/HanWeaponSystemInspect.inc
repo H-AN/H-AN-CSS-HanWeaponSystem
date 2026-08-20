@@ -267,12 +267,12 @@ void Inspect_Start(int client)
     // 重复模式重播时先停掉上一段检视音效, 避免音效重叠
     Inspect_StopSound(client);
 
-    int seq = Inspect_GetInt(weapon, "inspectseq", -1);
+    int seq = Inspect_GetIntVariant(weapon, "inspectseq", -1);
     if (seq < 0)
         return;
 
     // 时长单位为帧(30fps, 与原插件配置兼容), 换算成秒
-    int frame = Inspect_GetInt(weapon, "inspecttime", 0);
+    int frame = Inspect_GetIntVariant(weapon, "inspecttime", 0);
     if (frame <= 0)
         return;
 
@@ -287,7 +287,7 @@ void Inspect_Start(int client)
     // 检视音效: 缺省不填不播放; 纯路径条目(无帧号)逗号分隔随机选一个检视一开始播;
     // 带"帧号:路径"条目按帧号定时多段播放(同换弹逻辑, 30fps 换算秒); 只自己听得见
     char soundStr[512];
-    if (GetInspectConfigValue(weapon, "inspectsound", soundStr, sizeof(soundStr)))
+    if (GetInspectConfigValueVariant(weapon, "inspectsound", soundStr, sizeof(soundStr)))
     {
         char parts[MAX_INSPECT_SOUNDS][PLATFORM_MAX_PATH];
         int count = ExplodeString(soundStr, ",", parts, sizeof(parts), sizeof(parts[]));
@@ -375,15 +375,11 @@ void Inspect_End(int client)
     Inspect_StopSound(client);
     Inspect_FireForward(client, false);
 
-    // 恢复 VM[1] 到引擎原生序列(idle), 避免残留检视序列最后一帧导致下次设同序列无法重播
-    if (ClientVM[client][0] > 0 && IsValidEntity(ClientVM[client][0]) &&
-        ClientVM[client][1] > 0 && IsValidEntity(ClientVM[client][1]))
-    {
-        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
-        SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", 1.0);
-    }
-
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+
+    // 恢复 idle; usp 模板武器引擎不回正, 主动写一次正确 idle(有消音=0/无消音=8)
+    ViewModel_RestoreIdle(client, weapon);
+
     if (weapon > 0)
     {
         SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", GetGameTime());
@@ -462,7 +458,7 @@ void Inspect_OnPostThinkPost(int client)
     }
 
     // 持续强制 1号VM 检视序列(每tick在动画复制之后覆盖)
-    int seq = Inspect_GetInt(weapon, "inspectseq", -1);
+    int seq = Inspect_GetIntVariant(weapon, "inspectseq", -1);
     if (seq < 0)
     {
         Inspect_End(client);

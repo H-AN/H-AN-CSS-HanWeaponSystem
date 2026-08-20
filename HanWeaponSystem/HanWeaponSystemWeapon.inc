@@ -139,13 +139,34 @@ public void WeaponSwitchPost(int client, int iActiveWeapon)
     GetEdictClassname(iActiveWeapon, ClassName, sizeof(ClassName));
 
     char wmodelpath[PLATFORM_MAX_PATH];
-    if (GetWeaponConfigValue(iActiveWeapon, "wmodel", wmodelpath, sizeof(wmodelpath)))
+    if (GetWeaponConfigValueVariant(iActiveWeapon, "wmodel", wmodelpath, sizeof(wmodelpath)))
     {
         int modelIndex = PrecacheModel(wmodelpath, true);
         if (!StrEqual("weapon_knife", ClassName, false))
         {
             SetEntProp(iActiveWeapon, Prop_Send, "m_iWorldModelIndex", modelIndex);
         }
+    }
+}
+
+// ============================================================================
+// >> 重挂世界模型(消音器切换时调用; 变体感知选择 wmodel_silencer)
+// ============================================================================
+void ApplyWeaponWorldModel(int weapon)
+{
+    if (weapon <= 0 || !IsValidEntity(weapon))
+        return;
+
+    char ClassName[64];
+    GetEdictClassname(weapon, ClassName, sizeof(ClassName));
+    if (StrEqual(ClassName, "weapon_knife", false))
+        return;
+
+    char wmodelpath[PLATFORM_MAX_PATH];
+    if (GetWeaponConfigValueVariant(weapon, "wmodel", wmodelpath, sizeof(wmodelpath)))
+    {
+        int modelIndex = PrecacheModel(wmodelpath, true);
+        SetEntProp(weapon, Prop_Send, "m_iWorldModelIndex", modelIndex);
     }
 }
 
@@ -169,7 +190,7 @@ public Action ChangeWmodel(Handle timer, int entityRef)
     char useDropped[8];
 
     char wmodelpath[PLATFORM_MAX_PATH];
-    if (GetWeaponConfigValue(weapon, "wmodel", wmodelpath, sizeof(wmodelpath)))
+    if (GetWeaponConfigValueVariant(weapon, "wmodel", wmodelpath, sizeof(wmodelpath)))
     {
         if (!StrEqual("weapon_knife", ClassName, false))
         {
@@ -219,7 +240,7 @@ void CreateFakeWorldmod(int entity)
     char SkinCode[32];
     int skin = 0;
 
-    if (GetWeaponConfigValue(entity, "wmodel", wmodelpath, sizeof(wmodelpath)))
+    if (GetWeaponConfigValueVariant(entity, "wmodel", wmodelpath, sizeof(wmodelpath)))
     {
         if (GetWeaponConfigValue(entity, "skincode", SkinCode, sizeof(SkinCode)))
         {

@@ -18,25 +18,34 @@ public Action WeaponFireBullets(const char[] te_name, const int[] Players, int n
     char classname[64];
     GetEdictClassname(weaponEnt, classname, sizeof(classname));
 
-    PlayWeaponSound(client, classname, "firesound");
+    // 消音器变体音效: 装上消音器且 firesound_silencer 填了 → 变体; 否则回落普通 firesound
+    if (IsWeaponSilencerOn(weaponEnt))
+    {
+        if (!PlayWeaponSound(client, classname, "firesound_silencer"))
+            PlayWeaponSound(client, classname, "firesound");
+    }
+    else
+    {
+        PlayWeaponSound(client, classname, "firesound");
+    }
 
     return Plugin_Continue;
 }
 
 // ============================================================================
-// >> 音效播放
+// >> 音效播放(返回是否成功播放; key 对应 trie 内键名, 缺失/为空返回 false)
 // ============================================================================
-void PlayWeaponSound(int client, const char[] weaponClassname, const char[] key)
+bool PlayWeaponSound(int client, const char[] weaponClassname, const char[] key)
 {
     Handle kvEntry;
     if (!GetTrieValue(g_hWeaponTrie, weaponClassname, kvEntry))
-        return;
+        return false;
 
     char soundPath[PLATFORM_MAX_PATH];
     KvRewind(kvEntry);
     KvGetString(kvEntry, key, soundPath, sizeof(soundPath), "");
     if (strlen(soundPath) == 0)
-        return;
+        return false;
 
     // 多路径逗号分隔 → 每次随机选一个播放
     char parts[8][PLATFORM_MAX_PATH];
@@ -55,13 +64,15 @@ void PlayWeaponSound(int client, const char[] weaponClassname, const char[] key)
     }
 
     if (validCount == 0)
-        return;
+        return false;
 
     strcopy(soundPath, sizeof(soundPath), parts[valid[GetRandomInt(0, validCount - 1)]]);
     NormalizePath(soundPath);
 
     EmitSoundToAll(soundPath, client, SNDCHAN_WEAPON, SNDLEVEL_ROCKET);
     EmitSoundToAll(soundPath, client, SNDCHAN_STATIC, SNDLEVEL_NORMAL);
+
+    return true;
 }
 
 // ============================================================================
@@ -265,7 +276,8 @@ bool SelectReloadSound(int weapon, int clip, char[] out, int outLen)
     {
         if (EmptyReload_IsEmptyEnabled(weapon))
         {
-            GetEmptyReloadConfigValue(weapon, "emptyreloadsound", out, outLen);
+            // 消音器变体音效(装上且填了才用, 否则回落普通字段)
+            GetEmptyReloadConfigValueVariant(weapon, "emptyreloadsound", out, outLen);
             return (strlen(out) > 0);
         }
         return GetWeaponConfigValue(weapon, "reloadsound", out, outLen);
@@ -273,7 +285,7 @@ bool SelectReloadSound(int weapon, int clip, char[] out, int outLen)
 
     if (EmptyReload_IsTacticalEnabled(weapon))
     {
-        GetEmptyReloadConfigValue(weapon, "tacticalreloadsound", out, outLen);
+        GetEmptyReloadConfigValueVariant(weapon, "tacticalreloadsound", out, outLen);
         return (strlen(out) > 0);
     }
     return GetWeaponConfigValue(weapon, "reloadsound", out, outLen);
