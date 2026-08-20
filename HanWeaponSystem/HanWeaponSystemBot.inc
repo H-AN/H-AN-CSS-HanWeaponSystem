@@ -72,8 +72,8 @@ int Bot_GetWeaponBucket(const char[] useclassname)
 
 // ============================================================================
 // >> 出生事件(仅 bot; 预挡购 + 按槽位分延时给枪)
-//    槽位延时: 主0.3 / 副0.4 / 刀0.5 / 雷0.6 / C4 0.7 秒
-//    (每槽位独立定时器顺序触发, 刀更晚发, 避开创建实体瞬间的卡顿)
+//    槽位延时: 主1.3 / 副1.4 / 刀1.5 / 雷1.6 / C4 1.7 秒
+//    (起始推迟到 1.3, 避开 bot 出生先买原生枪顶掉新武器的竞态; 每槽位独立定时器顺序触发)
 // ============================================================================
 public void Bot_EventPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
@@ -104,7 +104,7 @@ public void Bot_EventPlayerSpawn(Event event, const char[] name, bool dontBroadc
     DataPack pack = new DataPack();
     pack.WriteCell(GetClientUserId(client));
     pack.WriteCell(g_iBotGiveGen[client]);
-    CreateTimer(0.3, Bot_GiveWeaponSlot, pack);
+    CreateTimer(1.3, Bot_GiveWeaponSlot, pack);
 }
 
 // ============================================================================

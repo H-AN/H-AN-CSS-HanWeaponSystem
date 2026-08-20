@@ -20,6 +20,10 @@
 // 检视音效固定通道(同一路径同一通道才能被 StopSound 正确停止)
 #define SNDCHAN_INSPECT SNDCHAN_STATIC
 
+// 观战者模式: 仅第一人称(in eye=4)给听检视音效, 第三人称(chase=5)不给
+// (CS:S 无第三人称检视动画, 第三人称观战还听检视音会很违和; OBS_MODE_IN_EYE=4)
+#define OBS_MODE_IN_EYE 4
+
 // 检视音效最多支持逗号分隔的数量
 #define MAX_INSPECT_SOUNDS 8
 
@@ -173,7 +177,43 @@ void Inspect_StopSound(int client)
     }
 
     StopSound(client, SNDCHAN_INSPECT, g_sInspectSound[client]);
+
+    // 观察者也一起停, 避免检视被中断/死亡/重播时观察者残留音尾
+    for (int i = 1; i <= MaxClients; i++)
+    {
+        if (i == client || !IsClientInGame(i) || !IsClientObserver(i))
+            continue;
+
+        if (GetEntPropEnt(i, Prop_Send, "m_hObserverTarget") == client &&
+            GetEntProp(i, Prop_Send, "m_iObserverMode") == OBS_MODE_IN_EYE)
+            StopSound(i, SNDCHAN_INSPECT, g_sInspectSound[client]);
+    }
+
     g_sInspectSound[client][0] = '\0';
+}
+
+// ============================================================================
+// >> 播放检视音效: 发给本人 + 所有正在观战他的观察者
+//    活着的队友/敌人不在接收列表 → 听不到(检视不暴露位置)
+// ============================================================================
+void Inspect_EmitSound(int client, const char[] path)
+{
+    int listeners[MAXPLAYERS + 1];
+    int count = 0;
+
+    listeners[count++] = client;
+
+    for (int i = 1; i <= MaxClients; i++)
+    {
+        if (i == client || !IsClientInGame(i) || !IsClientObserver(i))
+            continue;
+
+        if (GetEntPropEnt(i, Prop_Send, "m_hObserverTarget") == client &&
+            GetEntProp(i, Prop_Send, "m_iObserverMode") == OBS_MODE_IN_EYE)
+            listeners[count++] = i;
+    }
+
+    EmitSound(listeners, count, path, client, SNDCHAN_INSPECT, SNDLEVEL_NORMAL);
 }
 
 // ============================================================================
@@ -208,7 +248,7 @@ public Action Timer_PlayInspectSound(Handle timer, DataPack dp)
     if (weapon == -1 || g_iInspectWeapon[client] != weapon)
         return Plugin_Handled;
 
-    EmitSoundToClient(client, path, client, SNDCHAN_INSPECT, SNDLEVEL_NORMAL);
+    Inspect_EmitSound(client, path);
     return Plugin_Handled;
 }
 
@@ -292,7 +332,7 @@ void Inspect_Start(int client)
             int pick = plain[GetRandomInt(0, plainCount - 1)];
             strcopy(g_sInspectSound[client], sizeof(g_sInspectSound[]), parts[pick]);
             NormalizePath(g_sInspectSound[client]);
-            EmitSoundToClient(client, g_sInspectSound[client], client, SNDCHAN_INSPECT, SNDLEVEL_NORMAL);
+            Inspect_EmitSound(client, g_sInspectSound[client]);
         }
     }
 
