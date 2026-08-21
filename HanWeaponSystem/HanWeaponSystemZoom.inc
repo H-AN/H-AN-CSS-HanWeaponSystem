@@ -108,7 +108,7 @@ bool Zoom_IsNoAmmoWeapon(int weapon)
 }
 
 // ============================================================================
-// >> 判断武器是否右键被占用的脚本(原生开镜 awp/scout + 消音切换 m4a1/usp)
+// >> 判断武器是否右键被占用的脚本(原生开镜 awp/scout + 消音切换 m4a1/usp + 三连发切换 glock/famas)
 //    实体 classname 已被改写为 useclassname(如 weapon_awm)，须按 useclassname
 //    反查主配置的 classname 键，原始脚本为 weapon_awp/weapon_scout/weapon_m4a1/weapon_usp 才算。
 //    这些武器右键被引擎占用(自带瞄准镜/消音切换)，机瞄不生效(填写zoom直接无效)，
@@ -146,7 +146,8 @@ bool Zoom_IsNativeScopeWeapon(int weapon)
                 strcopy(origClass, sizeof(origClass), origClass[7]);
 
             return (StrEqual(origClass, "awp", false) || StrEqual(origClass, "scout", false) ||
-                StrEqual(origClass, "m4a1", false) || StrEqual(origClass, "usp", false));
+                StrEqual(origClass, "m4a1", false) || StrEqual(origClass, "usp", false) ||
+                StrEqual(origClass, "glock", false) || StrEqual(origClass, "famas", false));
         }
 
     } while (KvGotoNextKey(g_hWeaponConfig));

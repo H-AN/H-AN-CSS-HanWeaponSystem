@@ -19,18 +19,23 @@ public Action WeaponFireBullets(const char[] te_name, const int[] Players, int n
     GetEdictClassname(weaponEnt, classname, sizeof(classname));
 
     // 消音器变体音效: 装上消音器且 firesound_silencer 填了 → 变体; 否则回落普通 firesound
+    // 播出了自定义枪声才屏蔽原版 TE 枪声(避免重叠); 原版/未配置武器放行
+    bool bPlayed = false;
     if (IsWeaponSilencerOn(weaponEnt))
     {
         if (!PlayWeaponSound(client, classname, "firesound_silencer"))
-            PlayWeaponSound(client, classname, "firesound");
+            bPlayed = PlayWeaponSound(client, classname, "firesound");
+        else
+            bPlayed = true;
     }
     else
     {
-        PlayWeaponSound(client, classname, "firesound");
+        bPlayed = PlayWeaponSound(client, classname, "firesound");
     }
 
-    return Plugin_Continue;
+    return bPlayed ? Plugin_Handled : Plugin_Continue;
 }
+
 
 // ============================================================================
 // >> 音效播放(返回是否成功播放; key 对应 trie 内键名, 缺失/为空返回 false)
