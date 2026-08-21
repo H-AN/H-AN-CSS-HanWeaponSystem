@@ -28,6 +28,8 @@ float g_fModifyNextAttack[MAXPLAYERS + 1];
 bool g_bPressingAttack2[MAXPLAYERS + 1];
 bool g_bWeaponAutoFire[MAXPLAYERS + 1];
 bool g_bShootQcFix[MAXPLAYERS + 1];        // 开火动画修复(shootqcfixes): 换武器时缓存, 避免每tick走KV树
+bool g_bZoomAnimFire[MAXPLAYERS + 1];      // zoomanimfire: 机瞄时不同步开火动画到镜内模型(默认0=同步)
+bool g_bSideAimAnimFire[MAXPLAYERS + 1];   // sideaimanimfire: 侧瞄时不同步开火动画到镜内模型(默认0=同步)
 bool g_bQcFixShot[MAXPLAYERS + 1];         // 开火信号(WeaponFireBullets TE钩子置位, 当帧修复块消费)
 int g_iQcFixRestore[MAXPLAYERS + 1];       // 两步强制重播: -1=无; 否则=下tick要写回的开火seq
 bool g_bGrenadePullPrev[MAXPLAYERS + 1];   // 手雷拉保险音上升沿记录(持自定义雷+IN_ATTACK按下)

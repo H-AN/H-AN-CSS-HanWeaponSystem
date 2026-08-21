@@ -877,3 +877,46 @@ int GetFallbackNativePrice(const char[] classname)
     if (StrEqual(classname, "weapon_nightvision")) return 1500;
     return 0;
 }
+
+// ============================================================================
+// >> 通用工具函数(原 smlib 内联, 摆脱外部库依赖; 实现与 smlib 等价)
+//    Config.inc 为第2个被 include 的模块, 早于全部使用点(最早 EmptyReload.inc)
+// ============================================================================
+
+// 玩家金钱读取(CS:S m_iAccount)
+int Client_GetMoney(int client)
+{
+    return GetEntProp(client, Prop_Send, "m_iAccount");
+}
+
+// 玩家金钱写入
+void Client_SetMoney(int client, int value)
+{
+    SetEntProp(client, Prop_Send, "m_iAccount", value);
+}
+
+// 武器归属者(Prop_Data m_hOwner)
+int Weapon_GetOwner(int weapon)
+{
+    return GetEntPropEnt(weapon, Prop_Data, "m_hOwner");
+}
+
+// 武器是否正在换弹(Prop_Data m_bInReload)
+bool Weapon_IsReloading(int weapon)
+{
+    return GetEntProp(weapon, Prop_Data, "m_bInReload") != 0;
+}
+
+// 取当前活动武器实体 + classname(无有效武器时 buffer 置空并返回 INVALID_ENT_REFERENCE)
+int Client_GetActiveWeaponName(int client, char[] buffer, int size)
+{
+    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    if (weapon <= 0 || !IsValidEntity(weapon))
+    {
+        buffer[0] = '\0';
+        return INVALID_ENT_REFERENCE;
+    }
+
+    GetEdictClassname(weapon, buffer, size);
+    return weapon;
+}

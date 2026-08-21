@@ -5,8 +5,6 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <cstrike>
-#include <smlib>
-#include <clientprefs>
 #include <HanWeaponSystem>
 
 #include "HanWeaponSystem/HanWeaponSystemGlobals"
@@ -149,6 +147,8 @@ public void OnClientDisconnect(int client)
     g_bQcFixShot[client] = false;
     g_iQcFixRestore[client] = -1;
     g_bGrenadePullPrev[client] = false;
+    g_bZoomAnimFire[client] = false;
+    g_bSideAimAnimFire[client] = false;
 
     ClientVM[client][0] = -1;
     ClientVM[client][1] = -1;

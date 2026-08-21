@@ -227,6 +227,15 @@ public void OnPostThinkPost(int client)
         g_bQcFixShot[client] = false;
         g_iQcFixRestore[client] = -1;
 
+        // 机瞄/侧瞄开火动画同步开关(zoomanimfire/sideaimanimfire, 默认0=同步; 换武器时缓存)
+        char fireSyncStr[8];
+        g_bZoomAnimFire[client] = false;
+        g_bSideAimAnimFire[client] = false;
+        if (GetZoomConfigValue(WeaponIndex, "zoomanimfire", fireSyncStr, sizeof(fireSyncStr)) && StringToInt(fireSyncStr) > 0)
+            g_bZoomAnimFire[client] = true;
+        if (GetZoomConfigValue(WeaponIndex, "sideaimanimfire", fireSyncStr, sizeof(fireSyncStr)) && StringToInt(fireSyncStr) > 0)
+            g_bSideAimAnimFire[client] = true;
+
         if (GetWeaponConfigValue(WeaponIndex, "vmodel", vmodelpath, sizeof(vmodelpath)) && strlen(vmodelpath) > 0)
         {
             int weaponTeam = GetWeaponTeam(WeaponIndex);
@@ -327,7 +336,19 @@ public void OnPostThinkPost(int client)
             }
 
             // 复制动画数据到 1号VM
-            SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
+            // zoomanimfire/sideaimanimfire=1 时, 完全瞄准状态下不把开火动画同步给镜内模型
+            // (过渡期 InSwitch 不抑制, 保证衔接动画正常; 默认0=照常同步)
+            bool bSuppressFireSync = false;
+            if (g_iZoomInSwitch[client] == 0 && g_iSideAimInSwitch[client] == 0)
+            {
+                if (g_bZooming[client])
+                    bSuppressFireSync = g_bZoomAnimFire[client];
+                else if (g_bSideAiming[client])
+                    bSuppressFireSync = g_bSideAimAnimFire[client];
+            }
+
+            if (!bSuppressFireSync)
+                SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence"));
 
             SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", GetEntPropFloat(ClientVM[client][0], Prop_Send, "m_flPlaybackRate"));
 
