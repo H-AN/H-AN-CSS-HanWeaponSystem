@@ -8,6 +8,8 @@ void ViewModel_OnPluginStart()
     {
         if (IsClientInGame(client))
         {
+            g_iQcFixRestore[client] = -1;
+
             SDKHook(client, SDKHook_PostThinkPost, OnPostThinkPost);
 
             ClientVM[client][0] = GetEntPropEnt(client, Prop_Send, "m_hViewModel");
@@ -159,6 +161,10 @@ public void OnPostThinkPost(int client)
         IsCustom[client] = false;
         IsCustom2[client] = false;
         g_bVM0BlockHooked[client] = false;
+        g_bShootQcFix[client] = false;
+        g_bQcFixShot[client] = false;
+        g_iQcFixRestore[client] = -1;
+        Data[client] = 0;
 
         // 摘除 0号VM 传输屏蔽钩子(无武器时保险, 防死亡/换武器后钩子残留)
         if (IsValidEntity(ClientVM[client][0]))
@@ -194,6 +200,11 @@ public void OnPostThinkPost(int client)
                 g_bWeaponAutoFire[client] = true;
             }
         }
+
+        // 开火动画修复标记(shootqcfixes: 换武器时缓存, 每tick修复块只查内存不走KV树)
+        g_bShootQcFix[client] = Weapon_IsShootQcFix(WeaponIndex);
+        g_bQcFixShot[client] = false;
+        g_iQcFixRestore[client] = -1;
 
         if (GetWeaponConfigValue(WeaponIndex, "vmodel", vmodelpath, sizeof(vmodelpath)) && strlen(vmodelpath) > 0)
         {
@@ -239,6 +250,13 @@ public void OnPostThinkPost(int client)
 
             SetModelSequenceFlags(client, WeaponIndex);
 
+            // 切入对齐: VM1 cycle 归零; 若 VM1 现存 seq 恰好等于 VM0 当前 seq(快切碰撞),
+            // 先踢到不同值, 下tick常规同步拷贝 draw seq 时必产生 seq 跳变 → 客户端必定从第0帧重播
+            int vmSeq = GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence");
+            if (GetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence") == vmSeq)
+                SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", (vmSeq == 0) ? 1 : 0);
+            SetEntPropFloat(ClientVM[client][1], Prop_Data, "m_flCycle", 0.0);
+
             SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", GetEntPropFloat(ClientVM[client][0], Prop_Send, "m_flPlaybackRate"));
 
             if (GetWeaponConfigValue(WeaponIndex, "skincode", SkinCode, sizeof(SkinCode)))
@@ -260,6 +278,9 @@ public void OnPostThinkPost(int client)
             SDKUnhook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
             g_bVM0BlockHooked[client] = false;
 
+            // 切到原版武器: 清seq0技巧计数器残留(该块停摆期间Data会冻结, 防下次切入误吃draw)
+            Data[client] = 0;
+
             // 恢复 VM0 可见(非自定义武器必须显示, 清死亡/切枪残留的隐藏状态)
             if (IsValidEntity(ClientVM[client][0]))
             {
@@ -270,6 +291,7 @@ public void OnPostThinkPost(int client)
 
             IsCustom[client] = false;
             IsCustom2[client] = false;
+            g_bShootQcFix[client] = false;
         }
     }
     else
@@ -360,6 +382,9 @@ public void OnPostThinkPost(int client)
             SetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects", EntEffects);
         }
     }
+
+    // 开火动画修复(shootqcfixes): 须在 Old* 更新前调用(需上一tick seq/cycle 做回绕判定)
+    ViewModel_ShootQcFix(client, WeaponIndex, Sequence, Cycle, OldSequence[client], OldCycle[client]);
 
     OldWeapon[client] = WeaponIndex;
     OldSequence[client] = Sequence;
@@ -488,6 +513,99 @@ public Action OnTransmit(int entity, int viewer)
         return Plugin_Handled;
     }
     return Plugin_Continue;
+}
+
+// ============================================================================
+// >> 开火动画修复(shootqcfixes 配置)
+//    根因: 引擎 SendWeaponAnim 对相同 seq 不重置重播 + usp 类 VM 不自动归 idle
+//    → 开火随机 seq 命中上次残留 seq 时该次开火动画丢失
+//    两条修复路径:
+//    A. 动画已播完(非开火帧): 回正 idle → 下次开火 seq 必变化重播(顺带修不自动归0)
+//       播完判定: cycle>=1.0(非循环钳在1.0, v7.3实测) 或 同seq下cycle回绕(循环动画)
+//    B. 开火瞬间(TE钩子信号)引擎同seq跳过重设且动画已冻结: 两步强制重播 —
+//       本tick写idle、下tick写回开火seq(cycle=0), 跨tick两次更新客户端必看到seq变化
+//    任何动画接管期间(机瞄/侧瞄/检视/奔跑/换弹/自定义动画)不干预, 零冲突
+// ============================================================================
+void ViewModel_ShootQcFix(int client, int weapon, int sequence, float cycle, int prevSequence, float prevCycle)
+{
+    if (!g_bShootQcFix[client])
+        return;
+
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 ||
+        g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 ||
+        g_bInspecting[client] || g_iRunStage[client] != RUN_STAGE_NONE ||
+        g_bEmptyReloading[client] || g_bCustomAnim[client])
+        return;
+
+    if (ClientVM[client][0] <= 0 || !IsValidEntity(ClientVM[client][0]) ||
+        ClientVM[client][1] <= 0 || !IsValidEntity(ClientVM[client][1]))
+        return;
+
+    // 两步强制重播第二步: 写回开火seq(上一步已写idle, 客户端已看到 seq 变化)
+    if (g_iQcFixRestore[client] != -1)
+    {
+        SetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence", g_iQcFixRestore[client]);
+        SetEntPropFloat(ClientVM[client][0], Prop_Data, "m_flCycle", 0.0);
+        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", g_iQcFixRestore[client]);
+        SetEntPropFloat(ClientVM[client][1], Prop_Data, "m_flCycle", 0.0);
+        g_iQcFixRestore[client] = -1;
+        return;
+    }
+
+    int idle = ViewModel_GetIdleSeq(weapon);
+
+    // 已是 idle 无事可做(顺手清掉过期开火信号)
+    if (sequence == idle)
+    {
+        g_bQcFixShot[client] = false;
+        return;
+    }
+
+    // 动画是否已播完: 非循环钳在 1.0 / 循环同seq下cycle回绕
+    bool bFinished = (cycle >= 1.0) || (sequence == prevSequence && cycle < prevCycle);
+
+    if (!bFinished)
+    {
+        // 动画播放中: 引擎正常重设了新seq或动画未结束, 无需干预
+        g_bQcFixShot[client] = false;
+        return;
+    }
+
+    if (g_bQcFixShot[client])
+    {
+        // 路径B: 开火瞬间但动画冻结在尾帧 → 引擎同seq跳过了重设, 两步强制重播
+        g_bQcFixShot[client] = false;
+        SetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence", idle);
+        SetEntPropFloat(ClientVM[client][0], Prop_Data, "m_flCycle", 0.0);
+        SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", idle);
+        SetEntPropFloat(ClientVM[client][1], Prop_Data, "m_flCycle", 0.0);
+        g_iQcFixRestore[client] = sequence;
+        return;
+    }
+
+    // 路径A: 非开火帧且动画已播完 → 回正 idle
+    SetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence", idle);
+    SetEntPropFloat(ClientVM[client][0], Prop_Data, "m_flCycle", 0.0);
+    SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", idle);
+    SetEntPropFloat(ClientVM[client][1], Prop_Data, "m_flCycle", 0.0);
+}
+
+// ============================================================================
+// >> 计算武器正确 idle 序列(v7.3 消音器序列约定)
+//    变体武器(m4a1/usp模板): 有消音=0 / 无消音= usp 8、m4 7
+//    其他武器: idle = 0
+// ============================================================================
+int ViewModel_GetIdleSeq(int weapon)
+{
+    if (IsVariantWeapon(weapon))
+    {
+        if (IsWeaponSilencerOn(weapon))
+            return 0;
+
+        return Weapon_IsUspTemplate(weapon) ? 8 : 7;
+    }
+
+    return 0;
 }
 
 // ============================================================================

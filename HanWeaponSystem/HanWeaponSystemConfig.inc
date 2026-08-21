@@ -73,6 +73,7 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// reloadsound:   兜底换弹音效(帧号:路径,逗号分隔; 用HLMV逐帧播放换弹动画, 看第几帧该播哪个音效后回来填; 按reloadfps换算秒(默认30); 自动随reloadspeed对齐)。适用于: 未配空仓/战术的武器所有换弹; 已配单侧空仓/战术的武器另一侧换弹(走引擎普通换弹)");
     WriteFileLine(file, "// usedroppedmodel: 1=掉落时使用假W模型 0=直接改世界模型");
     WriteFileLine(file, "// armfix:        手臂修复 1=每帧对1号VM执行 m_hWeapon 自赋值修复左手模 0/缺省=不管");
+    WriteFileLine(file, "// shootqcfixes:  开火动画修复 1=开火动画播完自动回正idle(修复引擎同seq不重播导致的开火动画丢失/usp类不自动归0) 0/缺省=不管");
     WriteFileLine(file, "// grenadescale:  手雷类武器飞行模型缩放(如 2.0 放大 0.5 缩小; 0/缺省=不缩放; 仅手雷实体生效其他武器无效)");
     WriteFileLine(file, "// 机瞄/侧瞄请到 HanWeaponZoomData.cfg 中配置");
     WriteFileLine(file, "// 检视请到 HanWeaponInspectData.cfg 中配置");
@@ -730,6 +731,20 @@ bool Weapon_IsUspTemplate(int weapon)
     }
 
     return false;
+}
+
+// ============================================================================
+// >> 开火动画修复开关(主配置 shootqcfixes 键, 模式同 armfix/autofire)
+//    配置了的武器: 非idle动画播完(cycle>=1.0)自动回正 idle,
+//    保证下次开火随机 seq 必然 != 当前 seq → 引擎必定重播开火动画
+// ============================================================================
+bool Weapon_IsShootQcFix(int weaponEnt)
+{
+    if (weaponEnt <= 0 || !IsValidEntity(weaponEnt))
+        return false;
+
+    char value[8];
+    return GetWeaponConfigValue(weaponEnt, "shootqcfixes", value, sizeof(value)) && StringToInt(value) > 0;
 }
 
 // ============================================================================

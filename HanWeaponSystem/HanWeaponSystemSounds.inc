@@ -11,6 +11,10 @@ public Action WeaponFireBullets(const char[] te_name, const int[] Players, int n
     if (!IsClientInGame(client))
         return Plugin_Continue;
 
+    // 开火动画修复(shootqcfixes): 置开火信号, 当帧 ViewModel_ShootQcFix 消费
+    if (g_bShootQcFix[client])
+        g_bQcFixShot[client] = true;
+
     int weaponEnt = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
     if (weaponEnt == -1)
         return Plugin_Continue;
