@@ -31,6 +31,27 @@ void ViewModel_OnPluginStart()
 }
 
 // ============================================================================
+// >> 玩家进服初始化(补取VM句柄, 防止连接时viewmodel已存在且不再spawn导致ClientVM残留-1)
+// ============================================================================
+void ViewModel_OnClientPutInServer(int client)
+{
+    ClientVM[client][0] = GetEntPropEnt(client, Prop_Send, "m_hViewModel");
+
+    int PVM = -1;
+    while ((PVM = FindEntityByClassname(PVM, "predicted_viewmodel")) != -1)
+    {
+        if (GetEntPropEnt(PVM, Prop_Send, "m_hOwner") == client)
+        {
+            if (GetEntProp(PVM, Prop_Send, "m_nViewModelIndex") == 1)
+            {
+                ClientVM[client][1] = PVM;
+                break;
+            }
+        }
+    }
+}
+
+// ============================================================================
 // >> 实体创建(追踪 predicted_viewmodel / 霰弹枪换弹钩子 / 手雷投射物)
 // ============================================================================
 public void OnEntityCreated(int entity, const char[] classname)

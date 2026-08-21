@@ -194,8 +194,19 @@ public Action ChangeWmodel(Handle timer, int entityRef)
     {
         if (!StrEqual("weapon_knife", ClassName, false))
         {
+            // 消音状态且显式配置了 wmodel_silencer → 引擎硬编码消音W模型无法被
+            // m_iWorldModelIndex 覆盖, 强制走假模型路线(复用 wmodel_silencer 路径)
+            char silCheck[PLATFORM_MAX_PATH];
+            bool bForceFake = IsWeaponSilencerOn(weapon) &&
+                GetWeaponConfigValue(weapon, "wmodel_silencer", silCheck, sizeof(silCheck));
+
             int modelIndex = PrecacheModel(wmodelpath, true);
-            if (GetWeaponConfigValue(weapon, "usedroppedmodel", useDropped, sizeof(useDropped)))
+
+            if (bForceFake)
+            {
+                CreateFakeWorldmod(weapon);
+            }
+            else if (GetWeaponConfigValue(weapon, "usedroppedmodel", useDropped, sizeof(useDropped)))
             {
                 int mode = StringToInt(useDropped);
                 if (mode > 0)
@@ -221,13 +232,16 @@ public Action ChangeWmodel(Handle timer, int entityRef)
 // ============================================================================
 void CreateFakeWorldmod(int entity)
 {
-    if (entity <= 0 || !IsValidEntity(entity))
+    if (entity <= 0 || entity >= 2048 || !IsValidEntity(entity))
         return;
 
-    if (IsValidEntity(g_FakeModels[entity]) && g_FakeModels[entity] > 0)
+    // 旧fake清理(EntRef: 索引复用时不会误杀无关实体, ref失效自动作废)
+    if (g_FakeModels[entity] != INVALID_ENT_REFERENCE)
     {
-        AcceptEntityInput(g_FakeModels[entity], "Kill");
-        g_FakeModels[entity] = 0;
+        int old = EntRefToEntIndex(g_FakeModels[entity]);
+        if (old > 0 && IsValidEntity(old))
+            AcceptEntityInput(old, "Kill");
+        g_FakeModels[entity] = INVALID_ENT_REFERENCE;
     }
 
     char ClassName[64];
@@ -274,7 +288,7 @@ void CreateFakeWorldmod(int entity)
         EntEffects |= EF_NODRAW;
         SetEntProp(entity, Prop_Send, "m_fEffects", EntEffects);
 
-        g_FakeModels[entity] = fakeEnt;
+        g_FakeModels[entity] = EntIndexToEntRef(fakeEnt);
     }
 }
 
@@ -283,15 +297,27 @@ public Action HideFakeWModel(int client, int weapon)
     if (weapon <= 0 || weapon >= 2048 || !IsValidEntity(weapon))
         return Plugin_Continue;
 
-    int fake = g_FakeModels[weapon];
-
-    if (fake > 0 && IsValidEntity(fake))
+    if (g_FakeModels[weapon] != INVALID_ENT_REFERENCE)
     {
-        AcceptEntityInput(fake, "Kill");
-        g_FakeModels[weapon] = 0;
+        int fake = EntRefToEntIndex(g_FakeModels[weapon]);
+        if (fake > 0 && IsValidEntity(fake))
+            AcceptEntityInput(fake, "Kill");
+        g_FakeModels[weapon] = INVALID_ENT_REFERENCE;
     }
 
     return Plugin_Continue;
+}
+
+// ============================================================================
+// >> 地图切换清理(实体全灭, 实体索引数组残留必须清零防索引复用串扰)
+// ============================================================================
+void Weapon_OnMapStart()
+{
+    for (int i = 0; i < 2048; i++)
+    {
+        g_FakeModels[i] = INVALID_ENT_REFERENCE;
+        g_GrenadePrefix[i][0] = '\0';
+    }
 }
 
 // ============================================================================

@@ -1,4 +1,4 @@
-#define VERSION "7.7"
+#define VERSION "7.8"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 
@@ -33,7 +33,7 @@ int g_iQcFixRestore[MAXPLAYERS + 1];       // 两步强制重播: -1=无; 否则
 bool g_bGrenadePullPrev[MAXPLAYERS + 1];   // 手雷拉保险音上升沿记录(持自定义雷+IN_ATTACK按下)
 
 int offsCollision;
-int g_FakeModels[2048];
+int g_FakeModels[2048];             // 掉落伪世界模型: 武器实体索引 → fake实体EntRef(INVALID_ENT_REFERENCE=无; 防索引复用误杀)
 char g_GrenadePrefix[2048][64]; // 手雷投射物 → 自定义音效文件夹前缀(SpawnPost记录, 投射物音效同名文件替换用; 空=非自定义雷)
 
 // ============================================================================
