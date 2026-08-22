@@ -52,6 +52,36 @@ void ViewModel_OnClientPutInServer(int client)
 }
 
 // ============================================================================
+// >> armfix 专用修复实体(weapon_ak47): 懒创建 + EntRef 复用
+//    旧方案遍历地图找现成 prop_physics_multiplayer 指向 m_hWeapon 修左手模型,
+//    在 SM1.11 32位旧版 CS:S 下崩溃且依赖地图实体; 改用插件自建 weapon_ak47,
+//    停物理/关碰撞/传送地图外防拾取, 实测新旧环境均稳定不崩溃。
+// ============================================================================
+int ViewModel_EnsureArmFixEnt()
+{
+    int fixEnt = EntRefToEntIndex(g_iArmFixEntRef);
+    if (fixEnt != INVALID_ENT_REFERENCE && IsValidEntity(fixEnt))
+        return fixEnt;
+
+    fixEnt = CreateEntityByName("weapon_ak47");
+    if (fixEnt == -1)
+        return -1;
+
+    DispatchSpawn(fixEnt);
+
+    // 停止物理模拟(防vphysics持续下坠刷"Ignoring unreasonable position") + 关闭碰撞
+    SetEntityMoveType(fixEnt, MOVETYPE_NONE);
+    SetEntProp(fixEnt, Prop_Data, "m_nSolidType", 0);
+    SetEntProp(fixEnt, Prop_Send, "m_CollisionGroup", 0);
+
+    // 挪到地图外, 防玩家触碰拾取
+    TeleportEntity(fixEnt, view_as<float>({0.0, 0.0, -10000.0}), NULL_VECTOR, NULL_VECTOR);
+
+    g_iArmFixEntRef = EntIndexToEntRef(fixEnt);
+    return fixEnt;
+}
+
+// ============================================================================
 // >> 实体创建(追踪 predicted_viewmodel / 霰弹枪换弹钩子 / 手雷投射物)
 // ============================================================================
 public void OnEntityCreated(int entity, const char[] classname)
@@ -254,21 +284,12 @@ public void OnPostThinkPost(int client)
 
             SetEntProp(ClientVM[client][1], Prop_Send, "m_nModelIndex", modelIndex);
 
-            // armfix: 需要修复的武器, 遍历地图找现成 prop_physics_multiplayer 指向它
+            // armfix: 需要修复的武器, 用插件自建专用修复实体(weapon_ak47)指向它
             char armfixStr[8];
             if (GetWeaponConfigValue(WeaponIndex, "armfix", armfixStr, sizeof(armfixStr)) && StringToInt(armfixStr) > 0)
             {
-                int fixEnt = -1;
-                int ent = -1;
-                while ((ent = FindEntityByClassname(ent, "prop_physics_multiplayer")) != -1)
-                {
-                    if (IsValidEdict(ent) && IsValidEntity(ent))
-                    {
-                        fixEnt = ent;
-                        break;
-                    }
-                }
-                if (fixEnt > 0)
+                int fixEnt = ViewModel_EnsureArmFixEnt();
+                if (fixEnt != -1)
                     SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", fixEnt);
                 else
                     SetEntPropEnt(ClientVM[client][1], Prop_Send, "m_hWeapon", GetEntPropEnt(ClientVM[client][0], Prop_Send, "m_hWeapon"));

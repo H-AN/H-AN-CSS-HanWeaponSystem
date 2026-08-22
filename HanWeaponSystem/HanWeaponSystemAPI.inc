@@ -150,10 +150,11 @@ public any Native_Han_IsClientCustomAnim(Handle plugin, int numParams)
     return g_bCustomAnim[client];
 }
 
-public void Native_Han_StopClientCustomAnim(Handle plugin, int numParams)
+public any Native_Han_StopClientCustomAnim(Handle plugin, int numParams)
 {
     int client = GetNativeCell(1);
     if (client < 1 || client > MaxClients)
-        return;
+        return 0;
     CustomAnim_End(client);
+    return 0;
 }

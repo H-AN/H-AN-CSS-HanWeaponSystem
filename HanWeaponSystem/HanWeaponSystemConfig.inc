@@ -586,8 +586,8 @@ Handle ParseWeaponScript(const char[] useclassname)
 // ============================================================================
 // >> 通用: 从缓存的武器脚本根节点读取任意字段(字符串)
 //    脚本未缓存/键缺失 → false + 空串
-//    未来新字段(如 WeaponPrice/自定义键)直接复用, 无需新建函数
-//    注意: 扫描含当前正在注册的槽位(i<=g_WeaponCount), 兼容插件加载时半注册状态
+//    新字段(如 WeaponPrice/自定义键)直接复用, 无需新建函数
+//    扫描含当前正在注册的槽位(i<=g_WeaponCount), 兼容插件加载时半注册状态
 // ============================================================================
 bool GetWeaponScriptValue(const char[] useclassname, const char[] key, char[] value, int maxlen)
 {
@@ -807,9 +807,6 @@ int GetWeaponTeam(int weaponEnt)
 
 // ============================================================================
 // >> 原生武器价格(运行时按需查询引擎, 不建缓存; 刀/C4/盾=0)
-//    CS:S 原生武器数据编译在 DLL 内(无磁盘脚本可读), 用 cstrike 扩展原生
-//    CS_AliasToWeaponID + CS_GetWeaponPrice 实时获取价格(调用时必有在游戏内的 client)
-//    原生不可用(缺 gamedata/非 CS:S)时回落内置价格小表(GetFallbackNativePrice)
 // ============================================================================
 int GetNativeWeaponPrice(int client, const char[] classname)
 {

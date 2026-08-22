@@ -6,7 +6,7 @@
 // This module's camera logic is ported from the open-source plugin "Camera"
 // (screen materials with hook entity).
 //
-// 原作者 / Original Author: 花花花。(Flower)
+// 原作者 / Original Author: 花花花。
 // 版本 / Version: Flower
 // 主页 / Homepage: mufiu.com
 //

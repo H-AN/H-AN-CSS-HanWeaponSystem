@@ -6,7 +6,7 @@
 // This module's reload animation logic is ported from the open-source plugin
 // "Multiple Reloading Action".
 //
-// 原作者 / Original Author: Srk (cjsrk)
+// 原作者 / Original Author: cjsrk
 // 版本 / Version: 0.1
 //
 // 感谢原作者的付出！原插件仅供学习参考，本插件已在此基础上大幅重构改写。
