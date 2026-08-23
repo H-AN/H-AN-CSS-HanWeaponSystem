@@ -55,14 +55,32 @@
 
 ### 默认操作方式
 
-| 操作 | 按键/命令 |
-|---|---|
-| 购买武器 | `sm_buy`（可在 BuyData.cfg 修改） |
-| 出售武器 | `sm_sell`（可在 BuyData.cfg 修改） |
-| 机瞄 | 鼠标右键 |
-| 侧瞄 | 鼠标中键 |
-| 检视 | F 键 |
-| 奔跑 | Shift |
+| 操作 | 按键/命令 | 说明 |
+|---|---|---|
+| 购买武器 | `sm_buy`（可在 BuyData.cfg 修改） | 打开购买菜单 |
+| 出售武器 | `sm_sell`（可在 BuyData.cfg 修改） | 打开出售菜单 |
+| 机瞄 | 鼠标右键（IN_ATTACK2） | 需武器配置 `zoom 1`，点按开/关镜 |
+| 侧瞄 | **鼠标中键（IN_ATTACK3）** | 需武器配置 `sideaim 1`；**默认未绑定，需手动绑定**（见下方绑定指南） |
+| 检视 | F 键 或 `sm_inspect` | 需武器配置 `inspect 1`；F 键原为手电筒（impulse 100），已被检视接管 |
+| 奔跑 | **点按 Shift** | 需武器配置 `run 1`：点按触发奔跑动画（带起手/收手动作），之后**按住前进持续奔跑**；松开前进、开火、切枪、瞄准会自动结束 |
+| 静步 | **长按 Shift 不放** | 保留原版静步逻辑，与奔跑互不干扰 |
+
+> 注意：机瞄/侧瞄/检视/奔跑均为**每把武器独立配置**，未配置对应字段的武器按键无效果。
+
+### 按键绑定指南
+
+侧瞄使用鼠标中键（IN_ATTACK3），原版 CS:S 未绑定该键，需要在控制台手动绑定：
+
+```text
+bind mouse3 +attack3
+```
+
+- 绑定一次永久生效（写入 config.cfg）；
+- F 键默认已绑定 `impulse 100`（原版手电筒），装了本插件后自动变为检视，无需额外操作；
+- 按了没反应的排查顺序：
+  1. 该武器是否配置了对应功能字段（zoom / sideaim / inspect / run）；
+  2. 侧瞄是否已执行 `bind mouse3 +attack3`；
+  3. 是否处于换弹/切换武器的瞬间（部分动作会被临时屏蔽）。
 
 ---
 
@@ -172,6 +190,126 @@
 
 ---
 
+## 服务器命令
+
+| 命令 | 说明 |
+|---|---|
+| `sm_buy` | 打开购买菜单（命令名可在 BuyData.cfg `buycommand` 修改） |
+| `sm_sell` | 打开出售菜单（命令名可在 BuyData.cfg `sellcommand` 修改） |
+| `sm_inspect` | 检视当前武器 |
+| 每把武器的发放命令 | 主配置 `command` 字段注册的控制台命令，输入即获得该武器 |
+
+---
+
+## 服务器 cvar
+
+| cvar | 默认 | 说明 |
+|---|---|---|
+| `han_wpsdisablebackweapon` | `0` | 背部武器模型：`0`=启用假背模逻辑（未手持的自定义武器显示在背部/腿部）；`1`=禁用，走引擎原生逻辑 |
+
+可写入 `server.cfg` 持久生效，或管理员在控制台运行时切换（切换即时生效：禁用立即恢复引擎原生背模，启用自动重建）。
+
+---
+
+## 使用示例
+
+### 示例一：添加一把特殊武器
+
+```text
+"weapon_mygun"
+{
+    "command"        "sm_mygun"
+    "classname"      "weapon_ak47"
+    "useclassname"   "weapon_mygun"
+    "team"           "all"
+    "damage"         "+40"
+    "vmodel"         "models/weapons/mygun/v_mygun.mdl"
+    "wmodel"         "models/weapons/mygun/w_mygun.mdl"
+    "firesound"      "weapons/mygun/fire1.wav,weapons/mygun/fire2.wav"
+    "ammo"           "1000"
+    "killicon"       "weapon_ak47"
+}
+```
+
+配套步骤：把武器脚本放入服务器 `cstrike/scripts/weapon_mygun.txt`，模型音效加入下载表，玩家控制台输入 `sm_mygun` 即可获得。
+
+### 示例二：密码命令防滥用（随机命令名 + 后台发放）
+
+直接用 `sm_mygun` 这类好记的命令，任何玩家知道了都能白嫖。解决方案：**命令名用随机字符串，只让服务器后台调用**。
+
+1. 到随机字符串生成网站（如 [suijimimashengcheng.bmcx.com](https://suijimimashengcheng.bmcx.com/)）生成一串随机字符，例如 `hrhipN2bNeVW0PBz`；
+2. 填入主配置：
+
+```text
+"command"   "sm_hrhipN2bNeVW0PBz"
+```
+
+3. 该命令不对外公开，玩家无法猜测；正常获取走购买菜单（菜单内按配置名显示，不受影响）；
+4. 其他系统（如补给箱拾取、任务奖励插件）在服务端调用即可发枪：
+
+```sourcepawn
+public void OnClientPutInServer(int client)
+{
+    // 示例：进入游戏 30 秒后通过补给箱逻辑发放
+    // 实际使用时替换为你的触发条件
+}
+
+// 补给箱拾取等触发点内：
+FakeClientCommand(client, "sm_hrhipN2bNeVW0PBz");
+```
+
+> 提示：`command` 字段注册的是真实控制台命令，务必使用足够长的随机串防止被穷举。
+
+### 示例三：管理员手动发枪
+
+管理员在控制台或聊天框执行武器的发放命令即可（如 `sm_mygun`），受主配置 `team` 字段的队伍限制约束。
+
+---
+
+## 开发者 API
+
+其他插件可通过 `#include <HanWeaponSystem>` 调用本插件的全部功能接口。加载前建议检查依赖：
+
+```sourcepawn
+public void OnAllPluginsLoaded()
+{
+    if (!LibraryExists("HanWeaponSystem"))
+        SetFailState("需要 [华仔]武器系统 主插件");
+}
+```
+
+完整函数签名见仓库 `include/HanWeaponSystem.inc`，接口一览：
+
+**Native（主动调用）**
+
+| 接口 | 用途 |
+|---|---|
+| `GetClientViewModel(client, index)` | 获取玩家的 ViewModel 实体 |
+| `IsClientPressingAttack2(client)` | 玩家是否按住右键（即使按钮被改写也能正确判断） |
+| `IsWeaponAutoFire(client)` | 当前武器是否支持自动连发 |
+| `Han_IsClientZooming(client)` / `Han_IsWeaponZoomable(client)` | 机瞄状态查询 / 武器机瞄能力查询 |
+| `Han_IsClientSideAiming(client)` / `Han_IsWeaponSideAimable(client)` | 侧瞄状态 / 能力查询 |
+| `Han_IsClientInspecting(client)` / `Han_IsWeaponInspectable(client)` | 检视状态 / 能力查询 |
+| `Han_IsClientRunning(client)` | 是否处于持枪奔跑中 |
+| `Han_SetClientCustomAnim(client, seq, frames, repeat, interruptable)` | 播放自定义动画（最高优先级，可打断/霸体双模式） |
+| `Han_IsClientCustomAnim(client)` | 是否在播放自定义动画 |
+| `Han_StopClientCustomAnim(client)` | 停止自定义动画（等同自然结束广播） |
+
+**Forward（事件回调）**
+
+| 接口 | 触发时机 |
+|---|---|
+| `Han_OnClientZoom(client, bool zooming)` | 机瞄状态变化 |
+| `Han_OnClientSideAim(client, bool aiming)` | 侧瞄状态变化 |
+| `Han_OnClientInspect(client, bool inspecting)` | 检视开始/结束 |
+| `Han_OnClientRun(client, bool running)` | 奔跑开始/结束（含过渡） |
+| `Han_OnClientEmptyReload(client)` | 空仓换弹开始（一次性） |
+| `Han_OnClientTacticalReload(client)` | 战术换弹开始（一次性） |
+| `Han_OnClientCustomAnimStart(client, seq, frames)` | 自定义动画开始（含重播） |
+| `Han_OnClientCustomAnimEnd(client)` | 自定义动画结束（自然/被打断/切枪/死亡） |
+
+---
+
 ## 常见问题
 
 **Q：添加一把新武器最少要配什么？**
@@ -182,6 +320,15 @@ A：请确认填写了 `firesound`。已配置射击音效的武器会自动屏�
 
 **Q：修改配置后不生效？**
 A：需要 `sm plugins reload` 重载插件，并且玩家重新获取武器（换武器时会重新读取缓存）。
+
+**Q：侧瞄按中键没反应？**
+A：原版未绑定中键，先在控制台执行 `bind mouse3 +attack3`，并确认该武器配置了 `sideaim 1` 与侧瞄模型。
+
+**Q：按 F 出来的是检视不是手电筒？**
+A：这是正常行为，F 键（impulse 100）已被检视功能接管，检视动画与音效仅配置了 `inspect 1` 的武器生效，其他武器按 F 仍为原版手电逻辑。
+
+**Q：背上/腿上看不到自定义武器模型？**
+A：确认 cvar `han_wpsdisablebackweapon` 为 `0`（默认），且该武器的 `wmodel` 已正确配置；手持中的那把武器不会显示背负模型。
 
 ---
 

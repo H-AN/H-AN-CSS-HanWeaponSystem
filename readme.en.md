@@ -55,14 +55,32 @@ HanWeaponSystem is a large-scale weapon system plugin for Counter-Strike: Source
 
 ### Default Controls
 
-| Action | Key / Command |
-|---|---|
-| Buy weapon | `sm_buy` (configurable in BuyData.cfg) |
-| Sell weapon | `sm_sell` (configurable in BuyData.cfg) |
-| Iron sight | Right mouse button |
-| Side sight | Middle mouse button |
-| Inspect | F key |
-| Sprint | Shift |
+| Action | Key / Command | Notes |
+|---|---|---|
+| Buy weapon | `sm_buy` (configurable in BuyData.cfg) | Opens the buy menu |
+| Sell weapon | `sm_sell` (configurable in BuyData.cfg) | Opens the sell menu |
+| Iron sight | Right mouse button (IN_ATTACK2) | Requires `zoom 1`; press to toggle |
+| Side sight | **Middle mouse button (IN_ATTACK3)** | Requires `sideaim 1`; **not bound by default — bind it manually** (see guide below) |
+| Inspect | F key or `sm_inspect` | Requires `inspect 1`; F was originally the flashlight key (impulse 100), now taken over |
+| Sprint | **Tap Shift** | Requires `run 1`: tapping triggers the sprint animation (with start/end transitions), then **keep holding forward to keep sprinting**; releasing forward, firing, switching or aiming ends it |
+| Silent walk | **Hold Shift down** | Original silent-walk logic is preserved, independent from sprinting |
+
+> Note: iron sights / side sights / inspection / sprinting are configured **per weapon**. Keys do nothing on weapons without the matching fields.
+
+### Key Binding Guide
+
+Side sights use middle mouse button (IN_ATTACK3), which CS:S does not bind by default. Bind it in the console:
+
+```text
+bind mouse3 +attack3
+```
+
+- Binding is permanent (saved to config.cfg);
+- F key is bound to `impulse 100` (flashlight) by default; with this plugin it becomes inspect automatically, no extra setup;
+- If a key seems dead, check in order:
+  1. Does this weapon have the matching field enabled (zoom / sideaim / inspect / run);
+  2. Did you run `bind mouse3 +attack3` for side sights;
+  3. Are you mid-reload or mid-switch (some actions are temporarily suppressed).
 
 ---
 
@@ -172,6 +190,120 @@ All configs live in `addons/sourcemod/configs/HanWeaponSystem/`. Every file has 
 
 ---
 
+## Server Commands
+
+| Command | Description |
+|---|---|
+| `sm_buy` | Opens the buy menu (name configurable via BuyData.cfg `buycommand`) |
+| `sm_sell` | Opens the sell menu (name configurable via BuyData.cfg `sellcommand`) |
+| `sm_inspect` | Inspects the current weapon |
+| Per-weapon give commands | Console command registered from each weapon's `command` field; typing it grants that weapon |
+
+---
+
+## Server ConVars
+
+| ConVar | Default | Description |
+|---|---|---|
+| `han_wpsdisablebackweapon` | `0` | Back weapon models: `0` = enable fake back models (unequipped custom weapons shown on the back / leg); `1` = disabled, use the engine's native logic |
+
+Put it in `server.cfg` to persist, or switch it live from the console as an admin (changes apply instantly: disabling removes fake models and restores native ones on the next tick, re-enabling rebuilds automatically).
+
+---
+
+## Examples
+
+### Example 1: Adding a special weapon
+
+```text
+"weapon_mygun"
+{
+    "command"        "sm_mygun"
+    "classname"      "weapon_ak47"
+    "useclassname"   "weapon_mygun"
+    "team"           "all"
+    "damage"         "+40"
+    "vmodel"         "models/weapons/mygun/v_mygun.mdl"
+    "wmodel"         "models/weapons/mygun/w_mygun.mdl"
+    "firesound"      "weapons/mygun/fire1.wav,weapons/mygun/fire2.wav"
+    "ammo"           "1000"
+    "killicon"       "weapon_ak47"
+}
+```
+
+Steps: put the weapon script into the server's `cstrike/scripts/weapon_mygun.txt`, add models/sounds to the download table — players then type `sm_mygun` to receive it.
+
+### Example 2: Secret command anti-abuse (random command name + server-side granting)
+
+A memorable name like `sm_mygun` lets anyone who learns it grab the weapon for free. Solution: **make the command a random string and only call it from the server side**.
+
+1. Generate a random string on a site such as [suijimimashengcheng.bmcx.com](https://suijimimashengcheng.bmcx.com/), e.g. `hrhipN2bNeVW0PBz`;
+2. Put it in the main config:
+
+```text
+"command"   "sm_hrhipN2bNeVW0PBz"
+```
+
+3. The command is never published, so players cannot guess it; normal acquisition still goes through the buy menu (the menu shows the configured display name, unaffected);
+4. Other systems (supply crate pickups, quest reward plugins, etc.) grant the weapon server-side:
+
+```sourcepawn
+// Inside your pickup / reward trigger:
+FakeClientCommand(client, "sm_hrhipN2bNeVW0PBz");
+```
+
+> Tip: `command` registers a real console command — always use a long enough random string to prevent brute-forcing.
+
+### Example 3: Admin manual grant
+
+Admins simply execute the weapon's give command from the console or chat (e.g. `sm_mygun`). The main config's `team` field restrictions still apply.
+
+---
+
+## Developer API
+
+Other plugins can `#include <HanWeaponSystem>` to access all interfaces. Check the dependency before using:
+
+```sourcepawn
+public void OnAllPluginsLoaded()
+{
+    if (!LibraryExists("HanWeaponSystem"))
+        SetFailState("Requires the HanWeaponSystem main plugin");
+}
+```
+
+Full signatures are in `include/HanWeaponSystem.inc`. Overview:
+
+**Natives**
+
+| Interface | Purpose |
+|---|---|
+| `GetClientViewModel(client, index)` | Get a player's view model entity |
+| `IsClientPressingAttack2(client)` | Whether the player holds right mouse (correct even if buttons were rewritten) |
+| `IsWeaponAutoFire(client)` | Whether the current weapon supports auto burst |
+| `Han_IsClientZooming(client)` / `Han_IsWeaponZoomable(client)` | Iron-sight state / capability query |
+| `Han_IsClientSideAiming(client)` / `Han_IsWeaponSideAimable(client)` | Side-sight state / capability query |
+| `Han_IsClientInspecting(client)` / `Han_IsWeaponInspectable(client)` | Inspection state / capability query |
+| `Han_IsClientRunning(client)` | Whether the player is sprinting |
+| `Han_SetClientCustomAnim(client, seq, frames, repeat, interruptable)` | Play a custom animation (highest priority; interruptible / unstoppable modes) |
+| `Han_IsClientCustomAnim(client)` | Whether a custom animation is playing |
+| `Han_StopClientCustomAnim(client)` | Stop the custom animation (broadcasts like a natural end) |
+
+**Forwards**
+
+| Interface | Fired when |
+|---|---|
+| `Han_OnClientZoom(client, bool zooming)` | Iron-sight state changes |
+| `Han_OnClientSideAim(client, bool aiming)` | Side-sight state changes |
+| `Han_OnClientInspect(client, bool inspecting)` | Inspection starts / ends |
+| `Han_OnClientRun(client, bool running)` | Sprint starts / ends (incl. transitions) |
+| `Han_OnClientEmptyReload(client)` | Empty reload starts (one-shot) |
+| `Han_OnClientTacticalReload(client)` | Tactical reload starts (one-shot) |
+| `Han_OnClientCustomAnimStart(client, seq, frames)` | Custom animation starts (incl. self-restart) |
+| `Han_OnClientCustomAnimEnd(client)` | Custom animation ends (natural / interrupted / weapon switch / death) |
+
+---
+
 ## FAQ
 
 **Q: What is the minimum config to add a new weapon?**
@@ -182,6 +314,15 @@ A: Make sure `firesound` is filled. Weapons with a configured fire sound automat
 
 **Q: Config changes are not taking effect?**
 A: Reload with `sm plugins reload`, then have players re-acquire the weapon (caches refresh on weapon switch).
+
+**Q: Side sight does nothing when I press middle mouse?**
+A: Middle mouse is unbound by default — run `bind mouse3 +attack3` in the console first, and make sure this weapon has `sideaim 1` plus a side-sight model configured.
+
+**Q: Pressing F inspects instead of toggling the flashlight?**
+A: That is intended. The F key (impulse 100) is taken over by inspection; inspection animation and sounds only apply to weapons with `inspect 1`, other weapons keep the original flashlight behavior.
+
+**Q: No custom weapon model shown on my back / leg?**
+A: Make sure `han_wpsdisablebackweapon` is `0` (default) and the weapon's `wmodel` is configured; the weapon you are currently holding never shows a back model.
 
 ---
 
