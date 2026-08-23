@@ -166,6 +166,26 @@ All configs live in `addons/sourcemod/configs/HanWeaponSystem/`. Every file has 
 | `reloadfps` | Animation FPS (default 30, use 24 etc. as needed) |
 | All of the above support `_silencer` variants | m4a1/usp templates only, active while silencer is on |
 
+#### Reload sound setup (HLMV frame alignment — important for servers)
+
+The recommended way to add custom reload sounds is **frame alignment in HLMV** (the model viewer):
+
+1. Open the weapon model in HLMV, play the reload animation and note the **frame numbers** of key actions (e.g. mag out at frame 10, new mag in at 45, bolt rack at 70);
+2. Fill the config as `frame:sound path`, comma separated; the plugin plays each sound exactly at its frame during the reload takeover:
+
+```text
+"emptyreloadsound"   "10:weapons/mygun/magout.wav,45:weapons/mygun/magin.wav,70:weapons/mygun/bolt.wav"
+```
+
+3. `reloadfps` must match the animation's real FPS seen in HLMV (converted at 30fps by default), otherwise sounds drift out of sync.
+
+**Why is this mandatory on servers?**
+
+- **Local / single-player use**: the client automatically plays the custom sound events embedded in the model — no config needed;
+- **Dedicated servers**: the engine never fires the model's embedded sound events (client/animation driven, unhookable server-side). You must use the **frame + sound** config so the plugin plays them server-side with precise timing.
+
+The main config fallback `reloadsound` and the empty/tactical reload `emptyreloadsound` / `tacticalreloadsound` fields follow the same idea.
+
 ### HanWeaponBuyData.cfg (buy system)
 
 | Key | Description |
