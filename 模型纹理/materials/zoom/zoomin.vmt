@@ -1,0 +1,36 @@
+"UnlitGeneric"
+{
+               $basetexture "zoom/zoomin"
+
+               $translucent	1
+	 //$distancealpha	1
+	"$surfaceprop" "glass"
+	
+	$softedges		1          //   边缘
+	$edgesoftnessstart	1  //0.6
+	$edgesoftnessend 	0.1 //0.46
+	$scaleedgesoftnessbasedonscreenres 1
+	
+               //$alpha	1
+
+	 //$glow		1
+	 //$glowcolor	"[0 0 0]"
+	 //$glowalpha	0.3
+	 //$glowstart	0.1        //0.1
+	 //$glowend	                0.9      //0.9
+	 //$glowx	0            //光圈位移
+	 //$glowy	0            //光圈位移
+
+	//$vertexcolor	1    //会与摄像头插件冲突，导致镜内放大时黑圈不显示
+	//$vertexalpha	1   //使用会导致闪烁
+	 //$no_fullbright	1
+	 //$ignorez	1
+
+                //$model 1
+                //$outlinecolor            "[250 0 0]"
+               // $outlinealpha            .6
+               //$outlinestart0            .8   //外部轮廓，“外-外”，与outlinestart1必须相差至少0.02，否则整个轮廓将消失！
+              //$outlinestart1            .1   //外部轮廓，“内-外”
+               //$outlineend0             .4   //内部轮廓，“外-内”，与outlineend1必须相差至少0.02，否则整个轮廓将消失！
+               //$outlineend1             .0   //内部轮廓，“内-内”
+}
