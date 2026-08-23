@@ -1,0 +1,25 @@
+"VertexLitGeneric"
+{
+    "$basetexture" "easy\vg\attachments\mtl_mike1911_brake_00_rgb"
+    "$bumpmap" "easy\vg\attachments\mtl_mike1911_brake_00_n"
+    "$phongexponenttexture" "easy\vg\attachments\mtl_mike1911_brake_00_e"
+
+    "$color2" "[0 0 0]"
+    "$blendtintbybasealpha" "1"
+
+    "$phong" "1"
+    "$phongboost" "1"
+    "$phongalbedotint" "1"
+    "$phongalbedoboost" "10"
+    "$phongfresnelranges" "[1 0.1 0]"
+
+    "$rimlight" "1"
+    "$rimlightexponent" "100"
+    "$rimmask" "1"
+    "$rimlightboost" "1"
+
+    "$normalmapalphaenvmapmask" "1"
+
+    "$envmap" "easy\vg\attachments\specularity_00"
+    "$envmaptint" "[0.118 0.118 0.114]"
+}

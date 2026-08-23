@@ -1,0 +1,27 @@
+"VertexLitGeneric"
+{
+	"$basetexture" "models\weapons\95_knife\knife\M9_Albedo2"
+	"$bumpmap" "models\weapons\95_knife\knife\M9_Albedo2_N"
+	"$phongexponenttexture" "models\weapons\95_knife\knife\M9_Albedo2_M"
+	
+   // "$nocull"	"1"
+    "$color2" "[0.5 0.5 0.5]"
+  //  "$blendtintbybasealpha" "1"
+
+    "$phong" "1"
+    "$phongboost" "3"
+    // "$phongfresnelranges" "[1 0.5 0]"
+    "$phongfresnelranges" "[2 1 0]"
+    "$phongalbedotint" "0"
+
+    //rimlight doesn't properly show in hlmv, make sure you're changing these values in game
+    "$rimlight" "1"
+    "$rimlightexponent" "70"
+    "$rimmask" "1"
+    "$rimlightboost" "1"
+
+    "$normalmapalphaenvmapmask" "1"
+    "$envmapfresnel" "1"
+    "$envmap" "env_cubemap"
+    "$envmaptint" "[ .2 .2 .2 ]"
+}

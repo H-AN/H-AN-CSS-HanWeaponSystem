@@ -1,0 +1,179 @@
+"weapon_UMP45.single"
+{
+	"channel"		"CHAN_WEAPON"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\Fire.wav"
+	
+}
+
+"UMP45.Boltlock"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\BoltLock.wav"
+	
+}
+
+"UMP45.Magrelease"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\MagRelease.wav"
+	
+}
+
+"UMP45.Magout"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\MagOut.wav"
+	
+}
+
+"UMP45.Magin"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\MagIn.wav"
+	
+}
+
+"UMP45.Draw"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\Draw.wav"
+	
+}
+
+"UMP45.Draw2"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\Draw2.wav"
+	
+}
+
+"UMP45.Boltrelease"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\BoltRelease.wav"
+	
+}
+
+"UMP45.Boltback"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\BoltBack.wav"
+	
+}
+
+"UMP45.FullAutoButton"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\UMP45\FullAutoButton.wav"
+	
+}
+
+"Universal.Reloading"
+{
+	"channel"		"CHAN_WEAPON"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"1.0"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			"weapons\reloading\reloading1.wav" 
+	"wave"			"weapons\reloading\reloading2.wav" 
+	"wave"			"weapons\reloading\reloading3.wav" 
+	"wave"			"weapons\reloading\reloading4.wav" 
+	"wave"			"weapons\reloading\reloading5.wav" 
+	"wave"			"weapons\reloading\reloading6.wav" 
+	"wave"			"weapons\reloading\reloading7.wav" 
+	"wave"			"weapons\reloading\reloading8.wav" 
+	"wave"			"weapons\reloading\reloading9.wav" 
+	"wave"			"weapons\reloading\reloading10.wav" 
+	"wave"			"weapons\reloading\reloading11.wav" 
+	"wave"			"weapons\reloading\reloading12.wav" 
+	"wave"			"weapons\reloading\reloading13.wav" 
+	"wave"			"weapons\reloading\reloading14.wav" 
+	"wave"			"weapons\reloading\reloading15.wav" 
+	"wave"			"weapons\reloading\reloading16.wav" 
+	"wave"			"weapons\reloading\reloading17.wav" 
+	"wave"			"weapons\reloading\reloading18.wav" 
+	"wave"			"weapons\reloading\reloading19.wav" 
+	"wave"			"weapons\reloading\reloading20.wav" 
+	"wave"			"weapons\reloading\reloading21.wav" 
+	"wave"			"weapons\reloading\reloading22.wav" 
+	"wave"			"weapons\reloading\reloading23.wav" 
+	"wave"			"weapons\reloading\reloading24.wav" 
+	"wave"			"weapons\reloading\reloading25.wav" 
+	"wave"			"weapons\reloading\reloading26.wav" 
+	"wave"			"weapons\reloading\reloading27.wav" 
+	"wave"			"weapons\reloading\reloading28.wav" 
+	"wave"			"weapons\reloading\reloading29.wav" 
+	"wave"			"weapons\reloading\reloading30.wav"
+	"wave"			"weapons\reloading\reloading31.wav" 
+	"wave"			"weapons\reloading\reloading32.wav" 
+	"wave"			"weapons\reloading\reloading33.wav" 
+	"wave"			"weapons\reloading\reloading34.wav" 
+	"wave"			"weapons\reloading\reloading35.wav" 
+	"wave"			"weapons\reloading\reloading36.wav" 
+	"wave"			"weapons\reloading\reloading37.wav" 
+	"wave"			"weapons\reloading\reloading38.wav" 
+	"wave"			"weapons\reloading\reloading39.wav" 
+	"wave"			"weapons\reloading\reloading40.wav" 
+	"wave"			"weapons\reloading\reloading41.wav" 
+	"wave"			"weapons\reloading\reloading42.wav" 
+	"wave"			"weapons\reloading\reloading43.wav" 
+	"wave"			"weapons\reloading\reloading44.wav" 
+	"wave"			"weapons\reloading\reloading45.wav" 
+	"wave"			"weapons\reloading\reloading46.wav" 
+	"wave"			"weapons\reloading\reloading47.wav" 
+	"wave"			"weapons\reloading\reloading48.wav" 
+	"wave"			"weapons\reloading\reloading49.wav" 
+	"wave"			"weapons\reloading\reloading50.wav" 
+	"wave"			"weapons\reloading\reloading51.wav" 
+	"wave"			"weapons\reloading\reloading52.wav" 
+	"wave"			"weapons\reloading\reloading53.wav" 
+	"wave"			"weapons\reloading\reloading54.wav" 
+	"wave"			"weapons\reloading\reloading55.wav" 
+	"wave"			"weapons\reloading\reloading56.wav" 
+	"wave"			"weapons\reloading\reloading57.wav" 
+	"wave"			"weapons\reloading\reloading58.wav" 
+	"wave"			"weapons\reloading\reloading59.wav" 
+	"wave"			"weapons\reloading\reloading60.wav"  
+	
+}

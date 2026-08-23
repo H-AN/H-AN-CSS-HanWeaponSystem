@@ -1,0 +1,17 @@
+"VertexLitGeneric"
+{
+    "$basetexture" "models\weapons\v_models\eq_smoke_cs2\weapon_smokegrenade"
+    "$bumpmap" "models\weapons\v_models\eq_smoke_cs2\weapon_smokegrenade_n"
+    "$phongexponenttexture" "models\weapons\v_models\eq_smoke_cs2\weapon_smokegrenade_e"
+
+   
+	"$phong" "1"
+	"$phongboost" "5"
+	"$phongexponent" "9"
+	"$phongalbedoboost" "4"
+	"$phongfresnelranges" "[.5 .5 1]"
+	"$phongalbedotint" "1"
+	"$phongdisablehalflambert" "1"
+	
+	"$nocull" "1"
+}

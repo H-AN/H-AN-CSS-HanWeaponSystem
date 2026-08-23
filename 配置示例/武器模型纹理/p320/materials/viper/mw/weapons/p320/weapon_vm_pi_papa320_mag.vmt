@@ -1,0 +1,21 @@
+"VertexlitGeneric"
+{
+
+//Textures
+	"$basetexture" 				"viper/MW/weapons/p320/textures/mag_c"
+	"$bumpmap" 				"viper/MW/weapons/p320/textures/mag_n"
+	"$phongexponenttexture"   			"viper/MW/weapons/p320/textures/mag_e"
+
+	"$phong" 				"1"
+	"$phongboost" 				"6"
+	"$phongalbedotint"				 "1"
+	"$phongexponent" 				"30"
+	"$phongfresnelranges" 			"[1 5 22.5]"
+
+//Envmap
+	"$envmap" 				"env_cubemap"
+	"$envmaptint"				"[ .05 .05 .05 ]"
+	"$envmapfresnel"				".15"
+	"$normalmapalphaenvmapmask"		"1"
+
+}

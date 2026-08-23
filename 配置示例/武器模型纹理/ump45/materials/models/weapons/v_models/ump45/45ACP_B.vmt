@@ -1,0 +1,33 @@
+"VertexlitGeneric"
+{
+	"$basetexture" "models\weapons\v_models\ump45\45ACP_B"
+	"$bumpmap" "models\weapons\v_models\ump45\45ACP_N"
+	"$phongexponenttexture" "models\weapons\v_models\ump45\45ACP_ORM"
+   "$nodecal" "0"
+
+    "$phong" "1"
+	"$phongboost" "3"
+	"$phongexponent" "10"
+	"$phongfresnelranges" "[2 1.2 8]"
+	"$phongalbedotint" "1"
+    "$blendtintbybasealpha" "1"
+
+	"$normalmapalphaenvmapmask" "1"
+    "$envmapfresnel" "1"
+    "$envmap" "env_cubemap"
+    "$envmaptint" "[0.2 0.15 0.05]"
+
+	"$cloakPassEnabled" 		"1"				
+	"$nocull" "0"
+
+	"$detail" "weapons\RON\DDM4(M16)\specular"
+	"$detailscale" "1"        
+	"$detailblendfactor" "0.05" 
+
+	$rimlight	"1"
+	$rimmask	"1"
+	$rimlightboost	"1"
+	$rimlightexponent	"2"
+
+	"$color2" "[.35 .35 .35]"
+}

@@ -1,0 +1,22 @@
+VertexLitGeneric
+{
+	"$surfaceprop" "glass"
+         $basetexture models\weapons\v_models\awm\lens_d
+         $bumpmap models\weapons\v_models\awm\lens_n
+         $PhongExponentTexture models\weapons\v_models\awm\lens_s
+	"$envmap"			"env_cubemap"
+	"$envmapfresnel" 			"1"
+	"$envmapFresnelMinMaxExp"		"[1 .4 4]"
+	"$phongtint"   			"[.1 .15 .2]"
+	"$envmaptint"        "[.3 .4 .5]"
+	"$normalmapalphaenvmapmask" 	"1"
+ 	"$phong" 			"1"
+	"$phongboost" 			"5"
+	"$phongfresnelranges"		"[7 4.5 9]"
+	"$rimlight"     "1"
+	"$rimlightexponent"   "30" 
+	"$rimlightboost"   "1"
+	"$rimmask"      "1"
+	"$translucent" 1
+         $nocull 1
+}

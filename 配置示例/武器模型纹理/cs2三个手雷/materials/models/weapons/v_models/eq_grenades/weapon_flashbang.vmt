@@ -1,0 +1,16 @@
+"VertexLitGeneric"
+{
+    "$basetexture" "models\weapons\v_models\eq_grenades\flashbang"
+    "$bumpmap" "models\weapons\v_models\eq_grenades\flashbang_normal"
+    "$phongexponenttexture" "models\weapons\v_models\eq_grenades\weapon_flashbang_e"
+
+    "$phong" "1"
+	"$phongboost" "10"
+	"$phongexponent" "9"
+	"$phongalbedoboost" "4"
+	"$phongfresnelranges" "[.5 .5 1]"
+	"$phongalbedotint" "1"
+	"$phongdisablehalflambert" "1"
+	
+	"$nocull" "1"  
+}

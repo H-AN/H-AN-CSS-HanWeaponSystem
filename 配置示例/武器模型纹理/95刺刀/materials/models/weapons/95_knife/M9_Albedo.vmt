@@ -1,0 +1,23 @@
+"VertexLitGeneric"
+{
+// Main textures
+	$BaseTexture 					"models\weapons\95_knife\M9_Albedo"
+	$BumpMap						"models\weapons\95_knife\M9_Normal_Metalic"
+	$PhongExponentTexture 			"models\weapons\95_knife\M9_Exponent"
+
+// Shading - Lighting
+	$Phong 							1
+	$PhongAlbedoTint 				1
+	$NormalMapAlphaPhongMask		1
+	$PhongBoost 					1
+	$PhongFresnelRanges 			"[1 2 4]"
+	$LightWarpTexture 				"shared\lightwarps\light_01"
+
+// Reflection
+	$EnvMap							"env_cubemap"
+	$EnvMapTint						"[0.00775 0.008 0.00825]"
+	$EnvMapFresnel					1
+	$NormalMapAlphaEnvMapMask		1
+
+	$Color2 						"[0.8 0.8 0.8]"
+}

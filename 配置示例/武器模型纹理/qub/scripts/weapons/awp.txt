@@ -1,0 +1,124 @@
+"Weapon_AWP.Single"
+{
+	"channel"		"CHAN_WEAPON"
+	"volume"		"1.0"
+	"CompatibilityAttenuation"	"0.28"
+	"pitch"		"PITCH_NORM"
+
+	"wave"			")weapons/qbu202/shot-1.wav"
+}
+
+"QBU202_Bolt"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/bolt.wav"
+}
+
+
+"QBU202_Handle"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/handle.wav"
+}
+
+"QBU202_Deploy"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/draw.wav"
+}
+
+"QBU202_Draw"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/draw_2.wav"
+}
+
+"QBU202_Foley"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/foley.wav"
+}
+
+"QBU202_Clipout"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/clipout.wav"
+}
+
+"QBU202_Clipin"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/clipin.wav"
+}
+
+"QBU202_Boltback"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/boltback.wav"
+}
+
+"QBU202_Boltforward"
+{
+"channel""CHAN_ITEM"
+"volume""1.0"
+"CompatibilityAttenuation""1.0"
+"pitch""PITCH_NORM"
+
+"wave""weapons/qbu202/boltforward.wav"
+}
+
+"QBU202_WeaponMove1"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"pitch"		"PITCH_NORM"
+	"wave"		"weapons/qbu202/movement1.wav"
+}
+
+"QBU202_WeaponMove2"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"pitch"		"PITCH_NORM"
+	"wave"		"weapons/qbu202/movement2.wav"
+}
+
+"QBU202_WeaponMove3"
+{
+	"channel"		"CHAN_ITEM"
+	"volume"		"1.0"
+	"pitch"		"PITCH_NORM"
+	"wave"		"weapons/qbu202/movement3.wav"
+}

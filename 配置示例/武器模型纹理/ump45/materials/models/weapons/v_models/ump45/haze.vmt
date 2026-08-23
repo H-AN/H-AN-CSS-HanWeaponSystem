@@ -1,0 +1,10 @@
+"Vertexlitgeneric"
+{
+
+
+	"$baseTexture" "models\weapons\v_models\ump45\haze"
+
+$additive 1
+	"$selfillum" "1"
+	"$nocull" "1"
+}

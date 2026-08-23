@@ -1,0 +1,25 @@
+"VertexLitGeneric"
+{
+    "$basetexture" "easy\vg\weapons\mike1911\mtl_mike1911_mag_f_00_rgb"
+    "$bumpmap" "easy\vg\weapons\mike1911\mtl_mike1911_mag_f_00_n"
+    "$phongexponenttexture" "easy\vg\weapons\mike1911\mtl_mike1911_mag_f_00_e"
+
+    "$color2" "[0.3 0.3 0.3]"
+    "$blendtintbybasealpha" "1"
+
+    "$phong" "1"
+    "$phongboost" "1"
+    "$phongalbedotint" "1"
+    "$phongalbedoboost" "10"
+    "$phongfresnelranges" "[1 0.1 0]"
+
+    "$rimlight" "1"
+    "$rimlightexponent" "100"
+    "$rimmask" "1"
+    "$rimlightboost" "1"
+
+    "$normalmapalphaenvmapmask" "1"
+
+    "$envmap" "easy\vg\weapons\mike1911\specularity_00"
+    "$envmaptint" "[0.608 0.565 0.518]"
+}

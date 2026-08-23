@@ -1,0 +1,23 @@
+"VertexLitGeneric"
+{
+	$basetexture                "models\weapons\v_models\awm\eotech_lense_d"
+	$bumpmap                    "models\weapons\v_models\awm\eotech_lense_n"
+	$phongexponenttexture       "models\weapons\v_models\awm\eotech_lense_s"
+	$phong                      1
+	$phongboost                 10
+	$phongfresnelranges         "[5 10 10]"
+	"$phongalbedotint"		"1"
+	"$phongalbedoboost" 	"48"
+	$normalmapalphaenvmapmask    1
+
+
+
+	$envmap                     env_cubemap
+	$envmaptint                 "[.05 .05 .1125]"
+
+	$selfillum 1
+	$nocull 		"1"
+	$additive 		1
+	$model       1	
+	
+}

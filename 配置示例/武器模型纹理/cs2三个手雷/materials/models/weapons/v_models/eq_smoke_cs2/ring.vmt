@@ -1,0 +1,25 @@
+"VertexLitGeneric"
+{
+    "$basetexture" "models\weapons\v_models\eq_smoke_cs2\weapon_smokegrenade"
+    "$bumpmap" "models\weapons\v_models\eq_smoke_cs2\weapon_smokegrenade_n"
+    "$phongexponenttexture" "models\weapons\v_models\eq_smoke_cs2\weapon_smokegrenade_e"
+
+    "$color2" "[0 0 0]"
+    "$blendtintbybasealpha" "1"
+
+    "$phong" "1"
+    "$phongboost" "1"
+    "$phongfresnelranges" "[1 0.5 0]"
+    "$phongalbedotint" "0"
+
+    //rimlight doesn't properly show in hlmv, make sure you're changing these values in game
+    "$rimlight" "1"
+    "$rimlightexponent" "100"
+    "$rimmask" "1"
+    "$rimlightboost" "1"
+
+    "$normalmapalphaenvmapmask" "1"
+    "$envmapfresnel" "1"
+    //"$envmap" "env_cubemap"
+    "$envmaptint" "[0.2 0.2 0.2]"
+}

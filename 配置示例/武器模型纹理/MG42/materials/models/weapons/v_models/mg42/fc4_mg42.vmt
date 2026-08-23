@@ -1,0 +1,20 @@
+"VertexlitGeneric"
+{
+	"$basetexture" "models\weapons\v_models\mg42\mg42_d"
+	"$bumpmap" "models\weapons\v_models\mg42\mg42_n"
+	"$phongexponenttexture" 	"models\weapons\v_models\mg42\mg42_m"	
+	"$ambientoccltexture" "models\weapons\v_models\mg42\mg42_a"	
+	"$nocull"	"1"
+	"$color2" "[0.8 0.8 0.8]"
+	"$normalmapalphaenvmapmask" "1"
+	"$envmaptint" "[.1 .1 .1]"
+	"$envmapcontrast" ".4"
+	"$ambientocclusion" 1
+
+	
+	"$phong" 	"1"
+	"$phongexponent" 	"24"
+	"$phongboost"	 "3"
+	"$phongfresnelranges"      "[1 1 1]"
+	"$phongtint"                   "[0.5 0.5 0.5]" 
+}
