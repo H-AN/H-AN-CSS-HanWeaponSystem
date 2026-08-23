@@ -1,6 +1,7 @@
-#define VERSION "7.9"
+#define VERSION "8.0"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
+#define BWM_MAX_WEAPONS 128   // 背部武器模型: 参与缓存的最大武器段数
 
 bool g_bWeaponConfigReady = false;
 
@@ -113,6 +114,18 @@ float g_fBotInspectCd[MAXPLAYERS + 1];  // Bot 检视独立 CD(到点时间)
 float g_fBotAimEnd[MAXPLAYERS + 1];     // Bot 机瞄/侧瞄自动退镜时间点(开镜维持 botaimtime 秒)
 bool g_bNativePriceChecked = false;     // 原生武器价格可用性是否已探测(只探测一次)
 bool g_bNativePriceAvailable = false;   // CS_AliasToWeaponID/CS_GetWeaponPrice 是否可用
+
+// ============================================================================
+// >> 背部武器模型全局
+// ============================================================================
+ConVar g_hBackWeaponCvar = null;              // han_wpsdisablebackweapon: 0=假背模启用(默认) 1=禁用走引擎原生
+int g_iBMFakeRef[MAXPLAYERS + 1][2];          // 假模型实体 EntRef([0]=主武器背部 [1]=手枪腿部; INVALID_ENT_REFERENCE=无)
+int g_iBMFakeSrcRef[MAXPLAYERS + 1][2];       // 来源武器 EntRef(槽内武器变更即重建; 防索引复用串扰)
+int g_iBMFakeModelIdx[MAXPLAYERS + 1][2];     // 当前假模型预缓存索引(模型变更即重建)
+char g_sBWUseClass[BWM_MAX_WEAPONS][64];      // 参与背负模型的武器 useclassname 缓存
+char g_sBWModelPath[BWM_MAX_WEAPONS][PLATFORM_MAX_PATH]; // 对应 wmodel 路径
+int g_iBWModelIndex[BWM_MAX_WEAPONS];         // 对应模型预缓存索引
+int g_iBWCount = 0;                           // 缓存条数
 
 // ============================================================================
 // >> 空仓/战术换弹全局

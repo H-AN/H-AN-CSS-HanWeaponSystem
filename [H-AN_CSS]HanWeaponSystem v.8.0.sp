@@ -28,6 +28,7 @@
 #include "HanWeaponSystem/HanWeaponSystemCustomAnim"
 #include "HanWeaponSystem/HanWeaponSystemCombat"
 #include "HanWeaponSystem/HanWeaponSystemViewModel"
+#include "HanWeaponSystem/HanWeaponSystemBackModel"
 #include "HanWeaponSystem/HanWeaponSystemAPI"
 
 public Plugin myinfo =
@@ -64,6 +65,7 @@ public void OnPluginStart()
     BotConfig_OnPluginStart();
     Bot_OnPluginStart();
     ViewModel_OnPluginStart();
+    BackModel_OnPluginStart();
 
     HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
     HookEvent("player_death", Event_PlayerDeath);
@@ -89,6 +91,7 @@ public void OnMapStart()
     Buy_OnMapStart();
     Camera_OnMapStart();
     Weapon_OnMapStart();
+    BackModel_OnMapStart();
 }
 
 public void OnClientPutInServer(int client)
@@ -101,6 +104,7 @@ public void OnClientPutInServer(int client)
     SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
 
     SDKHook(client, SDKHook_PostThinkPost, OnPostThinkPost);
+    SDKHook(client, SDKHook_PostThinkPost, BackModel_PostThinkPost);
 
     SDKHook(client, SDKHook_WeaponSwitchPost, WeaponSwitchPost);
     SDKHook(client, SDKHook_WeaponDrop, OnWeaponDrop);
@@ -152,4 +156,11 @@ public void OnClientDisconnect(int client)
 
     ClientVM[client][0] = -1;
     ClientVM[client][1] = -1;
+
+    BackModel_Reset(client);
+}
+
+public void OnPluginEnd()
+{
+    BackModel_PluginEnd();
 }
