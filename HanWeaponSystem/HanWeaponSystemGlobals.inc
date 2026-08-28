@@ -1,7 +1,11 @@
-#define VERSION "8.0"
+#define VERSION "8.1"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 #define BWM_MAX_WEAPONS 128   // 背部武器模型: 参与缓存的最大武器段数
+
+// 观战者模式: 仅第一人称(in eye=4)给听检视音效, 第三人称(chase=5)不给
+// (CS:S 无第三人称检视动画, 第三人称观战还听检视音会很违和; OBS_MODE_IN_EYE=4)
+#define OBS_MODE_IN_EYE 4
 
 bool g_bWeaponConfigReady = false;
 
@@ -156,3 +160,11 @@ int g_iCustomAnimRestart[MAXPLAYERS + 1];       // 重播强制标记(2=播一�
 
 Handle g_ForwardClientCustomAnimStart = INVALID_HANDLE;
 Handle g_ForwardClientCustomAnimEnd = INVALID_HANDLE;
+
+// ============================================================================
+// >> 原生武器走1号模型cvar
+// ============================================================================
+ConVar g_hOldWeaponCvar = null;              // han_oldweaponfix: 0=不启用 1=启用后原始武器走1号模型
+bool OldWeaponFixes;
+
+forward void OldWeapon_HandleSwitch(int client, int weapon);

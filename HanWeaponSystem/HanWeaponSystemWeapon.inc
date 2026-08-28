@@ -215,12 +215,12 @@ public Action ChangeWmodel(Handle timer, int entityRef)
                 }
                 else
                 {
-                    SetEntProp(weapon, Prop_Send, "m_iWorldModelIndex", modelIndex);
+                    SetEntProp(weapon, Prop_Send, "m_iWorldModelIndex", modelIndex); 
                 }
             }
             else
             {
-                SetEntProp(weapon, Prop_Send, "m_iWorldModelIndex", modelIndex);
+                SetEntProp(weapon, Prop_Send, "m_iWorldModelIndex", modelIndex); 
             }
         }
     }

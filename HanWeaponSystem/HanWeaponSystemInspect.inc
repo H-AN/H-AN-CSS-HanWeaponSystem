@@ -20,9 +20,7 @@
 // 检视音效固定通道(同一路径同一通道才能被 StopSound 正确停止)
 #define SNDCHAN_INSPECT SNDCHAN_STATIC
 
-// 观战者模式: 仅第一人称(in eye=4)给听检视音效, 第三人称(chase=5)不给
-// (CS:S 无第三人称检视动画, 第三人称观战还听检视音会很违和; OBS_MODE_IN_EYE=4)
-#define OBS_MODE_IN_EYE 4
+
 
 // 检视音效最多支持逗号分隔的数量
 #define MAX_INSPECT_SOUNDS 8

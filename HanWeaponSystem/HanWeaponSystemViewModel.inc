@@ -190,7 +190,7 @@ public void OnPostThinkPost(int client)
             if (GetWeaponConfigValue(WeaponIndex, "vmodel", vmodelpath, sizeof(vmodelpath)))
             {
                 int modelIndex = PrecacheModel(vmodelpath, true);
-                SetEntProp(ClientVM[client][1], Prop_Send, "m_nModelIndex", modelIndex);
+                SetEntProp(ClientVM[client][1], Prop_Send, "m_nModelIndex", modelIndex); 
             }
         }
 
@@ -282,7 +282,7 @@ public void OnPostThinkPost(int client)
             EntEffects &= ~EF_NODRAW;
             SetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects", EntEffects);
 
-            SetEntProp(ClientVM[client][1], Prop_Send, "m_nModelIndex", modelIndex);
+            SetEntProp(ClientVM[client][1], Prop_Send, "m_nModelIndex", modelIndex); 
 
             // armfix: 需要修复的武器, 用插件自建专用修复实体(weapon_ak47)指向它
             char armfixStr[8];
@@ -300,14 +300,17 @@ public void OnPostThinkPost(int client)
             }
 
             SetModelSequenceFlags(client, WeaponIndex);
-
-            // 切入对齐: VM1 cycle 归零; 若 VM1 现存 seq 恰好等于 VM0 当前 seq(快切碰撞),
-            // 先踢到不同值, 下tick常规同步拷贝 draw seq 时必产生 seq 跳变 → 客户端必定从第0帧重播
-            int vmSeq = GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence");
-            if (GetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence") == vmSeq)
-                SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", (vmSeq == 0) ? 1 : 0);
-            SetEntPropFloat(ClientVM[client][1], Prop_Data, "m_flCycle", 0.0);
-
+            
+            if(!OldWeaponFixes) //如果所有原生武器不使用1号模型 进行修复,则进行切换修复,(有限修复,不能完全修复降低切换动画丢失频率)
+            {
+                // 切入对齐: VM1 cycle 归零; 若 VM1 现存 seq 恰好等于 VM0 当前 seq(快切碰撞),
+                // 先踢到不同值, 下tick常规同步拷贝 draw seq 时必产生 seq 跳变 → 客户端必定从第0帧重播
+                int vmSeq = GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence");
+                if (GetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence") == vmSeq)
+                    SetEntProp(ClientVM[client][1], Prop_Send, "m_nSequence", (vmSeq == 0) ? 1 : 0);
+                SetEntPropFloat(ClientVM[client][1], Prop_Data, "m_flCycle", 0.0);
+            }
+            
             SetEntPropFloat(ClientVM[client][1], Prop_Send, "m_flPlaybackRate", GetEntPropFloat(ClientVM[client][0], Prop_Send, "m_flPlaybackRate"));
 
             if (GetWeaponConfigValue(WeaponIndex, "skincode", SkinCode, sizeof(SkinCode)))
@@ -322,27 +325,35 @@ public void OnPostThinkPost(int client)
         }
         else
         {
-            int EntEffects = GetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects");
-            EntEffects |= EF_NODRAW;
-            SetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects", EntEffects);
-
-            SDKUnhook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
-            g_bVM0BlockHooked[client] = false;
-
-            // 切到原版武器: 清seq0技巧计数器残留(该块停摆期间Data会冻结, 防下次切入误吃draw)
-            Data[client] = 0;
-
-            // 恢复 VM0 可见(非自定义武器必须显示, 清死亡/切枪残留的隐藏状态)
-            if (IsValidEntity(ClientVM[client][0]))
+            if(OldWeaponFixes)
             {
-                EntEffects = GetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects");
-                EntEffects &= ~EF_NODRAW;
-                SetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects", EntEffects);
+                Data[client] = 0;
+                OldWeapon_HandleSwitch(client, WeaponIndex);
             }
+            else
+            {
+                int EntEffects = GetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects");
+                EntEffects |= EF_NODRAW;
+                SetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects", EntEffects);
 
-            IsCustom[client] = false;
-            IsCustom2[client] = false;
-            g_bShootQcFix[client] = false;
+                SDKUnhook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
+                g_bVM0BlockHooked[client] = false;
+
+                // 切到原版武器: 清seq0技巧计数器残留(该块停摆期间Data会冻结, 防下次切入误吃draw)
+                Data[client] = 0;
+
+                // 恢复 VM0 可见(非自定义武器必须显示, 清死亡/切枪残留的隐藏状态)
+                if (IsValidEntity(ClientVM[client][0]))
+                {
+                    EntEffects = GetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects");
+                    EntEffects &= ~EF_NODRAW;
+                    SetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects", EntEffects);
+                }
+
+                IsCustom[client] = false;
+                IsCustom2[client] = false;
+                g_bShootQcFix[client] = false;
+            }
         }
     }
     else

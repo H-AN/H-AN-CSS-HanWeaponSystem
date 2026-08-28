@@ -29,6 +29,7 @@
 #include "HanWeaponSystem/HanWeaponSystemCombat"
 #include "HanWeaponSystem/HanWeaponSystemViewModel"
 #include "HanWeaponSystem/HanWeaponSystemBackModel"
+#include "HanWeaponSystem/HanWeaponSystemOriginalWeaponsfixes"
 #include "HanWeaponSystem/HanWeaponSystemAPI"
 
 public Plugin myinfo =
@@ -66,6 +67,7 @@ public void OnPluginStart()
     Bot_OnPluginStart();
     ViewModel_OnPluginStart();
     BackModel_OnPluginStart();
+    OldWeapon_OnPluginStart();
 
     HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
     HookEvent("player_death", Event_PlayerDeath);

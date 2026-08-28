@@ -194,6 +194,11 @@ void BackModel_EnsureFake(int client, int slot, int weapon, const char[] attach)
     SetVariantString(attach);
     AcceptEntityInput(prop, "SetParentAttachment");
 
+    // 绑定拥有者（用于传输钩子判定归属）
+    SetEntPropEnt(prop, Prop_Send, "m_hOwnerEntity", client);
+    // 挂传输钩子：控制谁能看到假模型
+    SDKHook(prop, SDKHook_SetTransmit, BackModel_OnTransmit);
+
     g_iBMFakeRef[client][slot] = EntIndexToEntRef(prop);
     g_iBMFakeSrcRef[client][slot] = srcRef;
     g_iBMFakeModelIdx[client][slot] = modelIdx;
@@ -203,7 +208,10 @@ void BackModel_RemoveFake(int client, int slot)
 {
     int old = EntRefToEntIndex(g_iBMFakeRef[client][slot]);
     if (old > 0 && IsValidEntity(old))
+    {
+        SDKUnhook(old, SDKHook_SetTransmit, BackModel_OnTransmit);
         AcceptEntityInput(old, "Kill");
+    }
 
     g_iBMFakeRef[client][slot] = INVALID_ENT_REFERENCE;
     g_iBMFakeSrcRef[client][slot] = INVALID_ENT_REFERENCE;
@@ -217,3 +225,33 @@ void BackModel_ClearAll()
         BackModel_Reset(i);
     }
 }
+
+// ============================================================================
+// >> 传输钩子：控制谁能看到假模型
+//    自瞄：拥有者本人不接收
+//    第一人称观战：观察者 m_iObserverMode == 0 且正在观察拥有者 → 不传输
+//    第三人称 / Bot / 非观察者 → 正常传输
+// ============================================================================
+public Action BackModel_OnTransmit(int entity, int viewer)
+{
+    if (g_hBackWeaponCvar.IntValue != 0)
+        return Plugin_Continue;
+
+    if (viewer <= 0 || viewer > MaxClients)
+        return Plugin_Continue;
+
+    int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+    if (owner <= 0)
+        return Plugin_Continue;
+
+    if(viewer == owner && GetEntProp(viewer, Prop_Send, "m_bDrawViewmodel") == 1 
+    || GetEntProp(viewer, Prop_Send, "m_iObserverMode") == OBS_MODE_IN_EYE
+    && GetEntPropEnt(viewer, Prop_Send, "m_hObserverTarget") == owner)
+        return Plugin_Handled;
+
+    return Plugin_Continue;
+}
+
+
+
+
