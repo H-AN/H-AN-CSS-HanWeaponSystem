@@ -227,6 +227,8 @@ The main config fallback `reloadsound` and the empty/tactical reload `emptyreloa
 |---|---|---|
 | `han_wpsdisablebackweapon` | `0` | Back weapon models: `0` = enable fake back models (unequipped custom weapons shown on the back / leg); `1` = disabled, use the engine's native logic |
 
+| `han_oldweaponfix` | `0` |Native weapons that are not custom weapons also use the 1st model (v): `0` = disabled by default; `1` = enabled. When enabled, the animation for switching between 1st and 1st models will never be lost, and it supports quick-switch logic from plugins such as fast melee attacks.
+
 Put it in `server.cfg` to persist, or switch it live from the console as an admin (changes apply instantly: disabling removes fake models and restores native ones on the next tick, re-enabling rebuilds automatically).
 
 ---
