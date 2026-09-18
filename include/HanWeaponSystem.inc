@@ -231,7 +231,9 @@ enum struct HanKnifeResult
  */
 native int Han_GetLatestKnifeAttackId(int client);
 /** 必须传入明确 attackId；失败清零输出。只读取缓存，绝不重新发射射线。 */
-native bool Han_GetKnifeAttackResult(int client, int attackId, HanKnifeResult result, int size = sizeof(HanKnifeResult));
+// Use cell-array transport for SourcePawn 1.11; pass HanKnifeResult unchanged.
+// The native name, cell layout and explicit size remain ABI-compatible with 1.12.
+native bool Han_GetKnifeAttackResult(int client, int attackId, any[] result, int size = sizeof(HanKnifeResult));
 
 /** 检测已准备好；先 Attack，再 TraceResult，再伤害入口，最后 Finished。
  * 原有 PlayerAnimEvent 与本 forward 二选一推进连招，勿重复消费。

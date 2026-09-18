@@ -346,7 +346,10 @@ void Knife_EnsureTargetHooks(int ref)
 
 public Action Knife_PlayerAnim(const char[] name, const int[] clients, int numClients, float delay)
 {
-    int client = EntRefToEntIndex(TE_ReadEnt("m_hPlayer"));
+    // CS:S stores m_hPlayer as a CBaseHandle. TE_ReadNum reads its raw cells;
+    // mark it as a SourceMod EntRef so resolution checks the serial as well.
+    // Do not mask to an entity index: a stale handle must remain invalid.
+    int client = EntRefToEntIndex(TE_ReadNum("m_hPlayer") | (1 << 31));
     int event = TE_ReadNum("m_iEvent");
     if ((event != 0 && event != 1) || client < 1 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
         return Plugin_Continue;
@@ -779,6 +782,11 @@ void Knife_ScheduleFeedback(int client)
     if (g_Knife[client].SurfaceFlags & SURF_SKY)
         return;
     bool stab = g_Knife[client].Type == HanKnife_Secondary;
+    // Stock weapon_knife already supplies its own impact effect. Snapshot only
+    // this visual decision; stock knives still receive all other knife support.
+    char classname[64];
+    GetEntityClassname(weapon, classname, sizeof(classname));
+    bool supplementImpact = !StrEqual(classname, "weapon_knife");
     DataPack pack;
     CreateDataTimer(stab ? 0.2 : 0.1, Knife_FeedbackTimer, pack, TIMER_FLAG_NO_MAPCHANGE);
     pack.WriteCell(GetClientUserId(client));
@@ -787,6 +795,7 @@ void Knife_ScheduleFeedback(int client)
     pack.WriteCell(stab);
     pack.WriteCell(replaceSound);
     pack.WriteCell(g_KnifeHostage[client]);
+    pack.WriteCell(supplementImpact);
     pack.WriteCell(g_Knife[client].SurfaceProps);
     pack.WriteCell(g_Knife[client].SurfaceFlags);
     pack.WriteCell(g_Knife[client].HitBox);
@@ -808,6 +817,7 @@ public Action Knife_FeedbackTimer(Handle timer, DataPack pack)
     bool stab = view_as<bool>(pack.ReadCell());
     bool sound = view_as<bool>(pack.ReadCell());
     bool hostage = view_as<bool>(pack.ReadCell());
+    bool supplementImpact = view_as<bool>(pack.ReadCell());
     int surface = pack.ReadCell(), flags = pack.ReadCell(), hitbox = pack.ReadCell();
     if (client < 1 || !IsPlayerAlive(client) || weapon <= MaxClients || target < 0
         || GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon") != weapon)
@@ -822,7 +832,7 @@ public Action Knife_FeedbackTimer(Handle timer, DataPack pack)
     }
     if (sound)
         Knife_PlaySound(client, weapon, (hostage || (target > 0 && target <= MaxClients)) ? (stab ? 2 : 1) : 3);
-    if (!hostage && !(flags & (SURF_SKY | SURF_NODRAW | SURF_HINT | SURF_SKIP)) && surface >= 0)
+    if (supplementImpact && !hostage && !(flags & (SURF_SKY | SURF_NODRAW | SURF_HINT | SURF_SKIP)) && surface >= 0)
         Knife_Dispatch(g_KnifeSlashEffect, target, surface, hitbox, start, point, normal, angles, 0.0, false);
     return Plugin_Stop;
 }
