@@ -1,5 +1,4 @@
 #pragma semicolon 1
-// HanWeaponSystem 8.2 — entry point; see docs/8.2.md.
 #pragma newdecls required
 
 #include <sourcemod>
