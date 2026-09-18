@@ -41,6 +41,18 @@ public void OldWeapon_CvarChange(ConVar convar, const char[] oldValue, const cha
             if (!IsClientInGame(client) || !IsPlayerAlive(client))
                 continue;
 
+            int activeWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+            char configuredModel[PLATFORM_MAX_PATH];
+            // 此开关只撤销原版模型修复，不撤销自定义 vmodel 的接管。
+            if (activeWeapon > MaxClients && GetWeaponConfigValue(activeWeapon, "vmodel", configuredModel, sizeof(configuredModel)))
+                continue;
+            if (ClientVM[client][0] <= MaxClients || !IsValidEntity(ClientVM[client][0])
+                || ClientVM[client][1] <= MaxClients || !IsValidEntity(ClientVM[client][1]))
+            {
+                Han_ModelReset(client);
+                continue;
+            }
+
             int EntEffects = GetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects");
             EntEffects &= ~EF_NODRAW;
             SetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects", EntEffects);
@@ -55,6 +67,11 @@ public void OldWeapon_CvarChange(ConVar convar, const char[] oldValue, const cha
             IsCustom[client] = false;
             IsCustom2[client] = false;
             g_bShootQcFix[client] = false;
+            int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+            if (weapon > MaxClients)
+                Han_ModelConfirm(client, weapon, HanViewModel_VM0);
+            else
+                Han_ModelReset(client);
         }
     }
     else
@@ -80,6 +97,12 @@ public void OldWeapon_CvarChange(ConVar convar, const char[] oldValue, const cha
 // 原版武器走1号模型: 隐藏VM0, 显示VM1并设置模型路径, 同时调用左手模型修复
 public void OldWeapon_HandleSwitch(int client, int weapon)
 {
+    if (ClientVM[client][0] <= MaxClients || !IsValidEntity(ClientVM[client][0])
+        || ClientVM[client][1] <= MaxClients || !IsValidEntity(ClientVM[client][1]))
+    {
+        Han_ModelReset(client);
+        return;
+    }
     // 隐藏VM0
     int EntEffects = GetEntProp(ClientVM[client][0], Prop_Send, "m_fEffects");
     EntEffects |= EF_NODRAW;
@@ -101,5 +124,5 @@ public void OldWeapon_HandleSwitch(int client, int weapon)
     IsCustom[client] = true;
     IsCustom2[client] = false;
     g_bShootQcFix[client] = false;
+    Han_ModelConfirm(client, weapon, HanViewModel_VM1);
 }
-

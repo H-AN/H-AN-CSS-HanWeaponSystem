@@ -1,4 +1,5 @@
 #pragma semicolon 1
+// HanWeaponSystem 8.2 — entry point; see docs/8.2.md.
 #pragma newdecls required
 
 #include <sourcemod>
@@ -9,6 +10,8 @@
 
 #include "HanWeaponSystem/HanWeaponSystemGlobals"
 #include "HanWeaponSystem/HanWeaponSystemConfig"
+#include "HanWeaponSystem/HanWeaponSystemState"
+#include "HanWeaponSystem/HanWeaponSystemKnife"
 #include "HanWeaponSystem/HanWeaponSystemDownload"
 #include "HanWeaponSystem/HanWeaponSystemEmptyReloadConfig"
 #include "HanWeaponSystem/HanWeaponSystemEmptyReload"
@@ -68,6 +71,14 @@ public void OnPluginStart()
     ViewModel_OnPluginStart();
     BackModel_OnPluginStart();
     OldWeapon_OnPluginStart();
+    Knife_OnPluginStart();
+
+    // Late loading must provide the new damage contract for existing players too.
+    for (int client = 1; client <= MaxClients; client++)
+    {
+        if (IsClientInGame(client))
+            SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);
+    }
 
     HookEvent("player_death", Event_PlayerDeathPre, EventHookMode_Pre);
     HookEvent("player_death", Event_PlayerDeath);
@@ -94,10 +105,14 @@ public void OnMapStart()
     Camera_OnMapStart();
     Weapon_OnMapStart();
     BackModel_OnMapStart();
+    Knife_OnMapStart();
 }
 
 public void OnClientPutInServer(int client)
 {
+    Knife_Reset(client);
+    Han_ModelReset(client);
+    Knife_HookClient(client);
     ViewModel_OnClientPutInServer(client);
 
     SDKHook(client, SDKHook_WeaponSwitch, WeaponHook);
@@ -122,6 +137,8 @@ public void OnClientPutInServer(int client)
 
 public void OnClientDisconnect(int client)
 {
+    Knife_Reset(client);
+    Han_ModelReset(client);
     g_fModifyNextAttack[client] = 0.0;
 
     SpawnCheck[client] = false;
@@ -165,4 +182,13 @@ public void OnClientDisconnect(int client)
 public void OnPluginEnd()
 {
     BackModel_PluginEnd();
+}
+
+public void OnMapEnd()
+{
+    for (int client = 1; client <= MaxClients; client++)
+    {
+        Knife_Reset(client);
+        Han_ModelReset(client);
+    }
 }

@@ -86,6 +86,7 @@ int ViewModel_EnsureArmFixEnt()
 // ============================================================================
 public void OnEntityCreated(int entity, const char[] classname)
 {
+    Knife_EntityCreated(entity);
     if (StrEqual(classname, "predicted_viewmodel", false))
     {
         SDKHook(entity, SDKHook_Spawn, OnEntitySpawned);
@@ -109,6 +110,7 @@ public void OnEntitySpawned(int entity)
     int Owner = GetEntPropEnt(entity, Prop_Send, "m_hOwner");
     if ((Owner > 0) && (Owner <= MaxClients))
     {
+        Han_ModelReset(Owner);
         if (GetEntProp(entity, Prop_Send, "m_nViewModelIndex") == 0)
         {
             ClientVM[Owner][0] = entity;
@@ -199,12 +201,20 @@ public void OnPostThinkPost(int client)
 
     WeaponIndex = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 
+    if (ClientVM[client][0] <= MaxClients || !IsValidEntity(ClientVM[client][0])
+        || ClientVM[client][1] <= MaxClients || !IsValidEntity(ClientVM[client][1]))
+    {
+        Han_ModelReset(client);
+        return;
+    }
+
     int Sequence = GetEntProp(ClientVM[client][0], Prop_Send, "m_nSequence");
     float Cycle = GetEntPropFloat(ClientVM[client][0], Prop_Data, "m_flCycle");
     float PlaybackRate = GetEntPropFloat(ClientVM[client][0], Prop_Send, "m_flPlaybackRate");
 
     if (WeaponIndex <= 0)
     {
+        Han_ModelReset(client);
         int EntEffects = GetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects");
         EntEffects |= EF_NODRAW;
         SetEntProp(ClientVM[client][1], Prop_Send, "m_fEffects", EntEffects);
@@ -229,8 +239,9 @@ public void OnPostThinkPost(int client)
     }
 
     // 换武器
-    if (WeaponIndex != OldWeapon[client])
+    if (WeaponIndex != OldWeapon[client] || EntRefToEntIndex(g_HanModelWeapon[client]) != WeaponIndex)
     {
+        Han_ModelReset(client);
         // 换武器强制退出机瞄/侧瞄
         if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0)
             Aim_ForceExit(client);
@@ -322,6 +333,7 @@ public void OnPostThinkPost(int client)
 
             SDKHook(ClientVM[client][0], SDKHook_SetTransmit, OnTransmit);
             g_bVM0BlockHooked[client] = true;
+            Han_ModelConfirm(client, WeaponIndex, HanViewModel_VM1);
         }
         else
         {
@@ -353,6 +365,7 @@ public void OnPostThinkPost(int client)
                 IsCustom[client] = false;
                 IsCustom2[client] = false;
                 g_bShootQcFix[client] = false;
+                Han_ModelConfirm(client, WeaponIndex, HanViewModel_VM0);
             }
         }
     }
@@ -489,6 +502,8 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
 {
     int UserId = GetEventInt(event, "userid");
     int client = GetClientOfUserId(UserId);
+    Knife_Reset(client);
+    Han_ModelReset(client);
 
     // 强制退出机瞄/侧瞄
     if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0)
@@ -533,6 +548,8 @@ public void Event_PlayerSpawn(Handle event, const char[] name, bool dontBroadcas
 {
     int UserId = GetEventInt(event, "userid");
     int client = GetClientOfUserId(UserId);
+    Knife_Reset(client);
+    Han_ModelReset(client);
     SpawnCheck[client] = true;
 }
 

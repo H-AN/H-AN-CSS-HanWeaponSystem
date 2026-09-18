@@ -2,3 +2,9 @@
 00-最先阅读-开发与仓库规则.md
 交接文档-*.md
 奔跑屏幕晃动原理与CS起源移植方案.md
+
+# Local compiler artifacts and verification logs
+/build/
+tests/han82_contract.sp
+build.ps1
+/docs

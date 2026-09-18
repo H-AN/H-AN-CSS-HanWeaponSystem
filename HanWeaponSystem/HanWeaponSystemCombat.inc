@@ -7,6 +7,9 @@
 // ============================================================================
 public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
+    Action knifeAction = Knife_Damage(victim, attacker, inflictor, damage, damagetype);
+    if (knifeAction >= Plugin_Handled)
+        return Plugin_Handled;
     if (attacker <= 0 || attacker > MaxClients || !IsClientInGame(attacker) || !IsPlayerAlive(attacker))
         return Plugin_Continue;
 
@@ -67,7 +70,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
         }
     }
 
-    return Plugin_Continue;
+    return knifeAction;
 }
 
 // ============================================================================

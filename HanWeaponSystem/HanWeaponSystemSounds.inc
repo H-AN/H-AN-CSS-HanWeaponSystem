@@ -89,6 +89,8 @@ bool PlayWeaponSound(int client, const char[] weaponClassname, const char[] key)
 // ============================================================================
 public Action SoundCallBackHook(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
 {
+    if (Knife_SuppressSound(entity, sample))
+        return Plugin_Handled;
     if (entity <= 0)
         return Plugin_Continue;
 

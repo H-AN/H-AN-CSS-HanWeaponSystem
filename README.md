@@ -4,6 +4,9 @@
 
 **[ 简体中文 ]** | [ English ](readme.en.md)
 
+**8.2：** 新增刀左右键距离配置、原版式直线/盒体检测、材质反馈与命中部位 API，以及武器身份/VM 展示状态 API。入口已改名为 `[H-AN_CSS]HanWeaponSystem v.8.2.sp`。
+
+
 如果你喜欢这个插件，可以用以下方式支持我，感谢！
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z31PY52N)
@@ -330,6 +333,185 @@ public void OnAllPluginsLoaded()
 | `Han_OnClientCustomAnimEnd(client)` | 自定义动画结束（自然/被打断/切枪/死亡） |
 
 ---
+
+## v8.2 新功能与 API 用法
+
+### 新增功能
+
+- **人质命中反馈补足**：原始刀与自定义刀命中人质时，左键播放肉体命中音效、右键播放刺中音效，并沿用 CT/T 自定义音效前缀。确认人质损血后，在本刀缓存接触点补一次血效；插件不再为人质补发墙面材质效果。默认启用，无需配置，不改变人质伤害、扣钱规则或玩家部位 API。
+- **刀距离**：左右键分别使用 `knife_range_primary` / `knife_range_secondary`；采用眼睛起点、视线方向、先直线后盒体的检测方式。配置检测与原版伤害协调，缩短距离时拦截不符的命中，延长时补充伤害，避免重叠区重复扣血。
+- **统一材质反馈**：所有真实刀模板实体（`CKnife`）默认补充原版 `KnifeSlash` 材质反馈，包括原始 `weapon_knife` 和新刀；新增范围造成玩家损血时补充血效。效果使用表面属性，不按模型名称猜材质。
+- **统一命中部位**：攻击瞬间保存目标与部位，插件通过 API 复用。精确分类只针对主体检测已确定的玩家目标；未取得部位时明确返回未知。不会自动增加爆头伤害。
+- **通用身份与 VM 状态**：查询武器是否登记、原始模板和已经完成接管的展示模式，外部插件无需维护原始武器名单。
+- 保留现有动画、`firespeed` 和 `damage` 语义。
+
+在已有刀条目中添加距离即可，模型与音效配置照旧：
+
+```text
+"classname"             "weapon_knife"
+"damage"                ""
+"firespeed"             "0"
+"knife_range_primary"   "80.0"
+"knife_range_secondary" "60.0"
+```
+
+距离缺省、留空或填 `0` 分别使用原版 **48 / 32**；支持小数，有效范围为 `(0, 8192]`，非法值回退并记录错误。长度是检测路径长度，不是两个玩家中心之间的距离；盒体仍有原版宽容度。未登记的原始刀也提供部位 API，并使用原版距离。
+
+
+### 新增 native：查询身份、模式和本刀结果
+
+编译时使用本仓库 `include/HanWeaponSystem.inc`，运行时需要 HanWeaponSystem 8.2。
+
+```sourcepawn
+#include <sourcemod>
+#include <sdktools>
+#include <HanWeaponSystem>
+
+native bool Han_IsManagedWeapon(int weapon);
+native bool Han_GetWeaponBaseClass(int weapon, char[] buffer, int maxlen);
+native HanViewModelMode Han_GetClientViewModelMode(int client);
+native int Han_GetLatestKnifeAttackId(int client);
+native bool Han_GetKnifeAttackResult(int client, int attackId,
+    HanKnifeResult result, int size = sizeof(HanKnifeResult));
+```
+
+上面是接口签名速查；包含头文件后不需要在自己的插件里再次声明这些 native。
+
+| 接口 | 用途与返回规则 |
+|---|---|
+| `Han_IsManagedWeapon` | 实体是否匹配主配置的 `useclassname`；未登记的原始刀可以返回 false，但仍有刀事件 API |
+| `Han_GetWeaponBaseClass` | 读取登记的 `classname`，例如 `weapon_knife`；未登记返回 false 并清空字符串，不猜测第三方实体模板 |
+| `Han_GetClientViewModelMode` | `HanViewModel_VM0=0`、`HanViewModel_VM1=1`、`HanViewModel_NotReady=-1`；快切尚未接管、死亡或无有效模型时返回 NotReady |
+| `Han_GetLatestKnifeAttackId` | 当前有效攻击编号；没有记录返回 0，可用于主动查询 |
+| `Han_GetKnifeAttackResult` | 按明确编号复制缓存，不重新发射射线；失败清空输出。通常省略最后的 size 参数 |
+
+登记身份与 VM 模式相互独立：原版武器启用 `han_oldweaponfix` 后可以使用 VM1，同时仍是未登记武器。查询没有副作用，不会改变显隐。NotReady 不能当成 VM0，也不要据此强行显示 VM1。
+
+### 新增 forward：在正确阶段消费结果
+
+```sourcepawn
+forward void Han_OnKnifeAttack(int client, int weapon, int attackId,
+    HanKnifeAttackType type);
+forward void Han_OnKnifeTraceResult(int client, int weapon, int attackId);
+forward Action Han_OnKnifeDamage(int client, int weapon, int attackId,
+    int victim, bool supplemental, float &damage);
+forward void Han_OnKnifeAttackFinished(int client, int weapon, int attackId);
+```
+
+| 通知 | 时机与用途 |
+|---|---|
+| `Han_OnKnifeAttack` | 检测缓存已备好，用于推进连招。`HanKnife_Primary=0` 为左键，`HanKnife_Secondary=1` 为右键；不要直接套用原始 PlayerAnimEvent 数值 |
+| `Han_OnKnifeTraceResult` | Attack 后发布几何结果，包含挥空、世界、物体和玩家；命中不等于已经扣血 |
+| `Han_OnKnifeDamage` | 扣血前、主配置 damage 调整前；原版命中和补伤害共用此入口，`supplemental=true` 表示补伤路径 |
+| `Han_OnKnifeAttackFinished` | 同次 PostThinkPost 结算完成，用于读取最终结果，不用于修改已经发生的伤害 |
+
+```text
+检测并缓存 → Attack → TraceResult
+                   → 有效伤害入口：Damage → 主配置 damage → 游戏伤害处理
+                   → Finished（挥空或伤害被阻止也可能没有 Damage 通知）
+```
+
+这些是同步插件回调。`Han_OnKnifeDamage` 中调用查询 native 会立即返回本刀结果，不需要 Timer 或等待 `player_hurt`。返回 `Plugin_Continue` 保持伤害，`Plugin_Changed` 应用修改，`Plugin_Handled` / `Plugin_Stop` 阻止伤害。不要在回调里另行扣血或递归调用伤害接口。
+
+### 结果字段与生命周期
+
+使用 `HanKnifeResult result;` 接收，常用字段如下：
+
+| 字段 | 含义 |
+|---|---|
+| `AttackId`, `WeaponRef`, `Type`, `Time`, `Range` | 本刀编号、武器引用、左右键、游戏时间及路径长度 |
+| `Hit`, `EntityRef` | 几何命中及目标引用；世界为 0，挥空为 -1 |
+| `Start[3]`, `Direction[3]`, `Position[3]`, `Normal[3]` | 起点、方向、接触点、表面法线；挥空时不把表面字段当作有效接触 |
+| `SurfaceProps`, `SurfaceFlags`, `HitBox` | 主体检测的表面属性、标志和 hitbox 信息；静态物体可能以世界实体加 hitbox 表达 |
+| `HitGroup`, `HitGroupValid` | 精确部位与有效标志；有效且部位为 1 才是明确头部，未知时为 0，不自动等于爆头 |
+| `RangeChanged`, `DamageEntered`, `Supplemental` | 是否改距离、是否进入伤害入口、是否尝试补伤害；都不能单独证明已扣血 |
+| `HealthDamage`, `Finished` | `player_hurt` 报告的玩家损血与是否完成结算；物体损血不由此字段报告 |
+
+`WeaponRef` / `EntityRef` 是 EntRef，操作实体前用 `EntRefToEntIndex` 转换并验证。每次挥刀、切枪、攻击者死亡、断线或换图使旧记录失效，记录最长保留 2 秒。受害者死亡不会清除攻击者的本刀结果。缓存失效与“命中但部位未知”是不同情况；前者应停止使用旧数据。
+
+### 完整示例：查看武器状态、读取结果并在扣血前调整
+
+下面可作为示例。
+
+```sourcepawn
+
+public Action ShowWeaponState(int client, int args)
+{
+    if (client < 1 || !IsClientInGame(client) || !IsPlayerAlive(client))
+        return Plugin_Handled;
+    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    char base[64];
+    bool hasBase = Han_GetWeaponBaseClass(weapon, base, sizeof(base));
+    ReplyToCommand(client, "managed=%d baseKnown=%d base=%s VM=%d",
+        Han_IsManagedWeapon(weapon), hasBase, base, Han_GetClientViewModelMode(client));
+
+    HanKnifeResult result;
+    int id = Han_GetLatestKnifeAttackId(client);
+    if (id > 0 && Han_GetKnifeAttackResult(client, id, result))
+        ReplyToCommand(client, "attack=%d hit=%d group=%d valid=%d",
+            id, result.Hit, result.HitGroup, result.HitGroupValid);
+    return Plugin_Handled;
+}
+
+public void Han_OnKnifeAttack(int client, int weapon, int attackId, HanKnifeAttackType type)
+{
+    // 在此推进已配置的连招；请勿同时消耗 PlayerAnimEvent。
+    PrintToServer("knife attack=%d client=%d secondary=%d",
+        attackId, client, type == HanKnife_Secondary);
+}
+
+public void Han_OnKnifeTraceResult(int client, int weapon, int attackId)
+{
+    HanKnifeResult result;
+    if (!Han_GetKnifeAttackResult(client, attackId, result))
+        return;
+    int target = EntRefToEntIndex(result.EntityRef);
+    PrintToServer("trace attack=%d hit=%d target=%d", attackId, result.Hit, target);
+}
+
+public Action Han_OnKnifeDamage(int client, int weapon, int attackId,
+    int victim, bool supplemental, float &damage)
+{
+    if (victim < 1 || victim > MaxClients || !IsClientInGame(victim))
+        return Plugin_Continue;
+    if (weapon <= MaxClients || !IsValidEntity(weapon))
+        return Plugin_Continue;
+    char classname[64];
+    GetEntityClassname(weapon, classname, sizeof(classname));
+    if (!StrEqual(classname, "weapon_example_knife"))
+        return Plugin_Continue;
+
+    HanKnifeResult result;
+    if (!Han_GetKnifeAttackResult(client, attackId, result)
+        || EntRefToEntIndex(result.WeaponRef) != weapon
+        || EntRefToEntIndex(result.EntityRef) != victim)
+        return Plugin_Continue;
+
+    if (result.HitGroupValid && result.HitGroup == 1)
+    {
+        damage *= 2.0; // 适用于扣除生命值前的原生及附加命中。
+        return Plugin_Changed;
+    }
+    return Plugin_Continue;
+}
+
+public void Han_OnKnifeAttackFinished(int client, int weapon, int attackId)
+{
+    HanKnifeResult result;
+    if (Han_GetKnifeAttackResult(client, attackId, result))
+        PrintToServer("finished attack=%d healthDamage=%d supplemental=%d",
+            attackId, result.HealthDamage, result.Supplemental);
+}
+```
+
+### 旧插件迁移与限制
+
+- 用 `Han_OnKnifeAttack` 替换用于推进连招的 `PlayerAnimEvent`，不要同时消费两者。
+- 用 `Han_OnKnifeDamage` 统一计算特殊伤害；补伤害不会触发旧 `SDKHook_TraceAttack`。完整迁移后移除旧伤害修改，避免倍率叠加两次。
+- 如果旧插件有意把未知部位当作爆头，可自行使用 `!result.HitGroupValid || result.HitGroup == 1`；这属于该插件的玩法，不是主系统的定义。
+- 新部位分类为有限距离、保留遮挡的检测，不保证与旧的无限目标射线逐次得到相同结果。
+- `damage ""` 不增加主系统调整；填写后继续在上述伤害回调之后应用。原版与现有 `firespeed` 仍控制 CD，自定义命中结果改变时不会另写一套命中/挥空冷却。
+- `han_knife_debug 1` 可记录攻击、伤害和结算时序，测试后恢复 0。材质效果允许旁观者重复；特殊碰撞、原版动画事件前的玻璃触发伤害、补伤路径的 TraceBleed 等边界见。
 
 ## 常见问题
 

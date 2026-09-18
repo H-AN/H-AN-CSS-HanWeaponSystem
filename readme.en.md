@@ -4,6 +4,10 @@
 
 [ 简体中文 ](README.md) | **[ English ]**
 
+**8.2:** Configurable primary/secondary knife reach, line/hull tracing, stock material effects, cached hitgroup APIs, and managed-weapon/viewmodel-state APIs. The entry point is now `[H-AN_CSS]HanWeaponSystem v.8.2.sp`.
+
+Material feedback and hitgroup classification now run for every actual `CKnife` entity, including the unregistered stock knife.
+
 If you like this plugin, you can support me in the following ways. Thank you!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z31PY52N)
@@ -324,6 +328,187 @@ Full signatures are in `include/HanWeaponSystem.inc`. Overview:
 | `Han_OnClientCustomAnimEnd(client)` | Custom animation ends (natural / interrupted / weapon switch / death) |
 
 ---
+
+## v8.2 Features and API Usage
+
+Hostage feedback is included in v8.2 without a version bump or additional configuration. Stock and custom knives use flesh-hit sounds for primary attacks and stab sounds for secondary attacks, retaining CT/T custom sound prefixes. A confirmed health decrease emits one additional blood effect at the cached contact point, while the plugin skips its wall-material effect for hostages. Hostage damage, money penalties, and the player hitgroup API are unchanged.
+
+### New features
+
+- **Knife reach:** `knife_range_primary` / `knife_range_secondary` control each attack independently. Detection starts at the eyes along the view direction, using a line followed by a hull on a miss. Native damage is reconciled with the configured trace: out-of-range hits are blocked and additional reach can deal supplemental damage without doubling overlapping hits.
+- **Unified material feedback:** every actual knife-template entity (`CKnife`), including stock `weapon_knife`, receives stock `KnifeSlash` feedback. Supplemental hits that cause player health damage receive blood effects. Material selection uses surface properties, not model filenames.
+- **Shared hitgroup results:** targets and hitgroups are captured during the attack and exposed for reuse. Precise classification only applies to the player already selected by the main trace; unavailable classification is explicitly unknown. No automatic headshot damage bonus is added.
+- **Weapon identity and viewmodel state:** query registration, registered base class, and the confirmed display mode without maintaining a stock-weapon list.
+- Existing animation, `firespeed`, `damage`, and older APIs remain available. No DHooks or additional gamedata dependency is introduced.
+
+Add reach fields to an existing knife entry; keep its model and sound settings:
+
+```text
+"classname"             "weapon_knife"
+"damage"                ""
+"firespeed"             "0"
+"knife_range_primary"   "80.0"
+"knife_range_secondary" "60.0"
+```
+
+Omitted, empty or `0` reach values use stock **48 / 32**. Fractional values are supported within `(0, 8192]`; invalid values fall back and log an error. Reach is trace-path length, not the distance between player centers; stock hull tolerance still applies. Unregistered stock knives also expose hitgroup APIs and use stock reach.
+
+`knife_effects` and `knife_hitgroups` are **retired and ignored, including values of 0**. Material feedback and hitgroup classification run without these settings. Companion plugins decide whether unknown hitgroups count as headshots and choose headshot/Bot multipliers.
+
+### New natives: identity, display mode and attack snapshots
+
+Compile with this repository's `include/HanWeaponSystem.inc` and run with HanWeaponSystem 8.2.
+
+```sourcepawn
+#include <sourcemod>
+#include <sdktools>
+#include <HanWeaponSystem>
+
+native bool Han_IsManagedWeapon(int weapon);
+native bool Han_GetWeaponBaseClass(int weapon, char[] buffer, int maxlen);
+native HanViewModelMode Han_GetClientViewModelMode(int client);
+native int Han_GetLatestKnifeAttackId(int client);
+native bool Han_GetKnifeAttackResult(int client, int attackId,
+    HanKnifeResult result, int size = sizeof(HanKnifeResult));
+```
+
+The block above is a signature reference. Do not redeclare these natives in your plugin after including the header.
+
+| Native | Purpose and return contract |
+|---|---|
+| `Han_IsManagedWeapon` | Whether the entity matches a configured `useclassname`; an unregistered stock knife may return false while still emitting knife API notifications |
+| `Han_GetWeaponBaseClass` | Reads the registered `classname`, such as `weapon_knife`; returns false and clears the string when unregistered, without guessing third-party templates |
+| `Han_GetClientViewModelMode` | `HanViewModel_VM0=0`, `HanViewModel_VM1=1`, or `HanViewModel_NotReady=-1`; incomplete switches, death or missing models return NotReady |
+| `Han_GetLatestKnifeAttackId` | Current valid attack ID, or 0 when unavailable; useful for explicit queries |
+| `Han_GetKnifeAttackResult` | Copies the snapshot for a specific ID without tracing again; failure clears the output. Normally omit the final size argument |
+
+Registration and display mode are independent: a stock weapon can use VM1 through `han_oldweaponfix` while remaining unregistered. Queries have no visibility side effects. Do not interpret NotReady as VM0 or use it to force VM1 visible.
+
+### New forwards: consume results at the right stage
+
+```sourcepawn
+forward void Han_OnKnifeAttack(int client, int weapon, int attackId,
+    HanKnifeAttackType type);
+forward void Han_OnKnifeTraceResult(int client, int weapon, int attackId);
+forward Action Han_OnKnifeDamage(int client, int weapon, int attackId,
+    int victim, bool supplemental, float &damage);
+forward void Han_OnKnifeAttackFinished(int client, int weapon, int attackId);
+```
+
+| Forward | Timing and purpose |
+|---|---|
+| `Han_OnKnifeAttack` | The snapshot is ready; initialize or advance combos. `HanKnife_Primary=0` means left click, `HanKnife_Secondary=1` means right click; these are not the raw PlayerAnimEvent values |
+| `Han_OnKnifeTraceResult` | Publishes geometry after Attack, including misses, world, props and players; a geometric hit does not prove damage |
+| `Han_OnKnifeDamage` | Before health deduction and the main configuration's damage adjustment; shared by native and supplemental damage, with `supplemental=true` identifying the latter |
+| `Han_OnKnifeAttackFinished` | Settlement has finished in the same PostThinkPost; read outcomes here, not modify damage that already occurred |
+
+```text
+Trace and cache → Attack → TraceResult
+                        → Eligible damage: Damage → configured damage → game damage processing
+                        → Finished (misses or blocked attacks may have no Damage notification)
+```
+
+These are synchronous plugin callbacks. Querying the native inside `Han_OnKnifeDamage` returns the current snapshot immediately; no Timer or `player_hurt` wait is needed. Return `Plugin_Continue` to retain damage, `Plugin_Changed` to apply an edit, or `Plugin_Handled` / `Plugin_Stop` to block it. Do not deal a second hit or recursively invoke damage from this callback.
+
+### Result fields and lifetime
+
+Receive data in `HanKnifeResult result;`:
+
+| Fields | Meaning |
+|---|---|
+| `AttackId`, `WeaponRef`, `Type`, `Time`, `Range` | Attack ID, weapon reference, attack type, game time and path length |
+| `Hit`, `EntityRef` | Geometric hit and target reference; world is 0, a miss is -1 |
+| `Start[3]`, `Direction[3]`, `Position[3]`, `Normal[3]` | Start, direction, contact point and surface normal; surface fields are not a valid contact on a miss |
+| `SurfaceProps`, `SurfaceFlags`, `HitBox` | Main trace surface properties, flags and hitbox information; static props may use world plus a hitbox ID |
+| `HitGroup`, `HitGroupValid` | Precise classification and validity; valid group 1 is a confirmed head hit. Unknown is 0 and does not automatically mean headshot |
+| `RangeChanged`, `DamageEntered`, `Supplemental` | Changed reach, entered damage callback, attempted supplemental damage; none alone proves health loss |
+| `HealthDamage`, `Finished` | Player health damage reported by `player_hurt`, and completed settlement; this field does not report prop health changes |
+
+`WeaponRef` / `EntityRef` are EntRefs. Resolve them with `EntRefToEntIndex` and validate before operating on entities. A new attack, switch, attacker death, disconnect or map change invalidates the old record; records last at most 2 seconds. Victim death does not erase the attacker's snapshot. An expired record is different from a valid hit with an unknown hitgroup; never reuse stale data after a failed query.
+
+### Complete example: inspect state and adjust damage before deduction
+
+v8.2 api example.
+
+```sourcepawn
+
+public Action ShowWeaponState(int client, int args)
+{
+    if (client < 1 || !IsClientInGame(client) || !IsPlayerAlive(client))
+        return Plugin_Handled;
+    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    char base[64];
+    bool hasBase = Han_GetWeaponBaseClass(weapon, base, sizeof(base));
+    ReplyToCommand(client, "managed=%d baseKnown=%d base=%s VM=%d",
+        Han_IsManagedWeapon(weapon), hasBase, base, Han_GetClientViewModelMode(client));
+
+    HanKnifeResult result;
+    int id = Han_GetLatestKnifeAttackId(client);
+    if (id > 0 && Han_GetKnifeAttackResult(client, id, result))
+        ReplyToCommand(client, "attack=%d hit=%d group=%d valid=%d",
+            id, result.Hit, result.HitGroup, result.HitGroupValid);
+    return Plugin_Handled;
+}
+
+public void Han_OnKnifeAttack(int client, int weapon, int attackId, HanKnifeAttackType type)
+{
+    // Advance your configured combo here; do not also consume PlayerAnimEvent.
+    PrintToServer("knife attack=%d client=%d secondary=%d",
+        attackId, client, type == HanKnife_Secondary);
+}
+
+public void Han_OnKnifeTraceResult(int client, int weapon, int attackId)
+{
+    HanKnifeResult result;
+    if (!Han_GetKnifeAttackResult(client, attackId, result))
+        return;
+    int target = EntRefToEntIndex(result.EntityRef);
+    PrintToServer("trace attack=%d hit=%d target=%d", attackId, result.Hit, target);
+}
+
+public Action Han_OnKnifeDamage(int client, int weapon, int attackId,
+    int victim, bool supplemental, float &damage)
+{
+    if (victim < 1 || victim > MaxClients || !IsClientInGame(victim))
+        return Plugin_Continue;
+    if (weapon <= MaxClients || !IsValidEntity(weapon))
+        return Plugin_Continue;
+    char classname[64];
+    GetEntityClassname(weapon, classname, sizeof(classname));
+    if (!StrEqual(classname, "weapon_example_knife"))
+        return Plugin_Continue;
+
+    HanKnifeResult result;
+    if (!Han_GetKnifeAttackResult(client, attackId, result)
+        || EntRefToEntIndex(result.WeaponRef) != weapon
+        || EntRefToEntIndex(result.EntityRef) != victim)
+        return Plugin_Continue;
+
+    if (result.HitGroupValid && result.HitGroup == 1)
+    {
+        damage *= 2.0; // Applies to native AND supplemental hits before health is deducted.
+        return Plugin_Changed;
+    }
+    return Plugin_Continue;
+}
+
+public void Han_OnKnifeAttackFinished(int client, int weapon, int attackId)
+{
+    HanKnifeResult result;
+    if (Han_GetKnifeAttackResult(client, attackId, result))
+        PrintToServer("finished attack=%d healthDamage=%d supplemental=%d",
+            attackId, result.HealthDamage, result.Supplemental);
+}
+```
+
+### Migration and limits
+
+- Replace combo-driving `PlayerAnimEvent` handling with `Han_OnKnifeAttack`; do not consume both.
+- Move special damage calculation to `Han_OnKnifeDamage`. Supplemental damage does not invoke legacy `SDKHook_TraceAttack`. Remove the old damage modifier after fully migrating to avoid applying multipliers twice.
+- A companion intentionally treating unknown hitgroups as headshots may use `!result.HitGroupValid || result.HitGroup == 1`. This is its own gameplay policy, not the main system's definition.
+- Bounded classification retains obstacles and may differ from an old infinite victim-only ray.
+- Empty `damage` adds no main-system adjustment; populated values still apply after the damage forward. The engine and existing `firespeed` retain cooldown control; a changed custom hit/miss result does not introduce a separate cooldown writer.
+- Use `han_knife_debug 1` for attack/damage/settlement logs, then restore 0. Duplicate observer decals are allowed. Special collision behavior, glass-trigger damage before the animation event, and supplemental TraceBleed .
 
 ## FAQ
 

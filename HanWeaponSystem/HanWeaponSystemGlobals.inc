@@ -1,4 +1,4 @@
-#define VERSION "8.1"
+#define VERSION "8.2"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 #define BWM_MAX_WEAPONS 128   // 背部武器模型: 参与缓存的最大武器段数

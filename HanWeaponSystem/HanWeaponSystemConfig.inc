@@ -64,6 +64,9 @@ void WriteDefaultWeaponConfig(const char[] path)
     WriteFileLine(file, "// firesound/switchsound: 音效路径");
     WriteFileLine(file, "// wmodel_silencer/firesound_silencer: 消音器变体(仅变体武器 weapon_m4a1/weapon_usp 有效); 装上消音器时用变体, 不填回落普通字段");
     WriteFileLine(file, "// customsoundct/customsoundt: 替换刀音效路径文件夹 不同队伍");
+    WriteFileLine(file, "// knife_range_primary/knife_range_secondary: 刀左右键检测长度，缺省/0=48/32，有效范围(0,8192]，支持小数");
+    WriteFileLine(file, "// 所有刀模板（含原始weapon_knife）统一提供材质反馈和部位API，无需knife_effects/knife_hitgroups开关，旧字段忽略");
+    WriteFileLine(file, "// 超出原版范围的补伤害不触发SDKHook_TraceAttack，特殊伤害规则使用Han_OnKnifeDamage，详见8.2文档");
     WriteFileLine(file, "// autofire:      速射连发(1/0) 按住右键强制转左键速射并清除后坐力; 配有机瞄或原生开镜的武器自动失效(机瞄优先)");
     WriteFileLine(file, "// Sqtype:        1=手动自定义动画序列(IsCustom2)");
     WriteFileLine(file, "// skincode:      皮肤索引");
