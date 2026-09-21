@@ -1,4 +1,4 @@
-#define VERSION "8.2"
+#define VERSION "8.3"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 #define BWM_MAX_WEAPONS 128   // 背部武器模型: 参与缓存的最大武器段数
@@ -37,6 +37,10 @@ bool g_bZoomAnimFire[MAXPLAYERS + 1];      // zoomanimfire: 机瞄时不同步�
 bool g_bSideAimAnimFire[MAXPLAYERS + 1];   // sideaimanimfire: 侧瞄时不同步开火动画到镜内模型(默认0=同步)
 bool g_bQcFixShot[MAXPLAYERS + 1];         // 开火信号(WeaponFireBullets TE钩子置位, 当帧修复块消费)
 int g_iQcFixRestore[MAXPLAYERS + 1];       // 两步强制重播: -1=无; 否则=下tick要写回的开火seq
+int g_iQcFixWeapon[MAXPLAYERS + 1];        // 实际开火武器 EntRef
+bool g_bQcFixTracking[MAXPLAYERS + 1];     // 仅跟踪实际开火产生的动画
+int g_iQcFixSequence[MAXPLAYERS + 1];
+int g_iQcFixParity[MAXPLAYERS + 1];
 bool g_bGrenadePullPrev[MAXPLAYERS + 1];   // 手雷拉保险音上升沿记录(持自定义雷+IN_ATTACK按下)
 
 int offsCollision;

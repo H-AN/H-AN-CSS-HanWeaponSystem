@@ -4,6 +4,7 @@ HanViewModelMode g_HanModelMode[MAXPLAYERS + 1];
 
 void Han_ModelReset(int client)
 {
+    ViewModel_ResetShootQcFix(client);
     g_HanModelWeapon[client] = INVALID_ENT_REFERENCE;
     g_HanModelMode[client] = HanViewModel_NotReady;
 }

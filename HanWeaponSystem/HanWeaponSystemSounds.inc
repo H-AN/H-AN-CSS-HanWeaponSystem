@@ -11,13 +11,16 @@ public Action WeaponFireBullets(const char[] te_name, const int[] Players, int n
     if (!IsClientInGame(client))
         return Plugin_Continue;
 
-    // 开火动画修复(shootqcfixes): 置开火信号, 当帧 ViewModel_ShootQcFix 消费
-    if (g_bShootQcFix[client])
-        g_bQcFixShot[client] = true;
-
     int weaponEnt = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
     if (weaponEnt == -1)
         return Plugin_Continue;
+
+    // 将开火信号绑定到实际武器，避免切枪后消费上一把武器的信号。
+    if (g_bShootQcFix[client] && EntRefToEntIndex(g_HanModelWeapon[client]) == weaponEnt)
+    {
+        g_bQcFixShot[client] = true;
+        g_iQcFixWeapon[client] = EntIndexToEntRef(weaponEnt);
+    }
 
     char classname[64];
     GetEdictClassname(weaponEnt, classname, sizeof(classname));
