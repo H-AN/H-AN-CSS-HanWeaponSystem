@@ -4,9 +4,23 @@
 
 [ 简体中文 ](README.md) | **[ English ]**
 
-**8.2:** Configurable primary/secondary knife reach, line/hull tracing, stock material effects, cached hitgroup APIs, and managed-weapon/viewmodel-state APIs. The entry point is now `[H-AN_CSS]HanWeaponSystem v.8.2.sp`.
+**8.2:** Configurable primary/secondary knife reach, line/hull tracing, stock material effects, cached hitgroup APIs, and managed-weapon/viewmodel-state APIs. 
 
 Material feedback and hitgroup classification now run for every actual `CKnife` entity, including the unregistered stock knife.
+
+
+**8.3:** Adjusted the refresh range for weapon-switching animations and implemented independent handling to reset animation progress 
+
+when switching to custom models; refactored the trigger and cleanup logic for firing animation fixes to minimize unintended interference with draw, 
+
+reload, and other animation sequences.
+
+Added a standalone plugin: [HanVMCrossFix](https://github.com/H-AN/HanVMCrossFix).
+
+This fixes animation issues caused by switching between v0 and v1 models; 
+
+installing it alongside the main mod is recommended for a better experience.
+
 
 If you like this plugin, you can support me in the following ways. Thank you!
 
