@@ -10,6 +10,9 @@
 
 新增独立插件：[HanVMCrossFix](https://github.com/H-AN/HanVMCrossFix)修复跨v0-v1模型切换所导致的动画缺失问题，建议一起安装使用体验更好
 
+使用[快速手雷](https://github.com/Ducheese/quickseries)插件的情况下 
+配置 quickgrenade_weapons.cfg内 要使用"viewmodel_fix_mode"  "2"
+
 
 如果你喜欢这个插件，可以用以下方式支持我，感谢！
 

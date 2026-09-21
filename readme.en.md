@@ -22,6 +22,10 @@ This fixes animation issues caused by switching between v0 and v1 models;
 installing it alongside the main mod is recommended for a better experience.
 
 
+if use [quickseries](https://github.com/Ducheese/quickseries) plugins 
+change Settings file quickgrenade_weapons.cfg "viewmodel_fix_mode"  "2"
+
+
 If you like this plugin, you can support me in the following ways. Thank you!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z31PY52N)
