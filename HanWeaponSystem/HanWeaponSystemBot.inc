@@ -402,8 +402,8 @@ void Bot_OnPlayerRunCmd(int client, int buttons, bool bReloading)
         if (chance > 0 && GetGameTime() >= g_fBotInspectCd[client] && GetRandomInt(1, 100) <= chance)
         {
             float inspectCd = Bot_GetRootFloat("botinspectcd", 5.0);
-            Inspect_Start(client);
-            g_fBotInspectCd[client] = GetGameTime() + inspectCd;
+            if (Inspect_Start(client))
+                g_fBotInspectCd[client] = GetGameTime() + inspectCd;
         }
     }
 }

@@ -1,4 +1,4 @@
-#define VERSION "8.3"
+#define VERSION "8.4"
 #define MAX_WEAPON 256
 #define EF_NODRAW 32
 #define BWM_MAX_WEAPONS 128   // 背部武器模型: 参与缓存的最大武器段数
@@ -159,7 +159,7 @@ bool g_bCustomAnim[MAXPLAYERS + 1];             // 自定义动画播放中
 int g_iCustomAnimSeq[MAXPLAYERS + 1];           // 播放的动画序列号
 float g_fCustomAnimEnd[MAXPLAYERS + 1];         // 结束时间戳(开始 + 帧数/30)
 int g_iCustomAnimWeapon[MAXPLAYERS + 1];        // 播放开始时武器实体
-bool g_bCustomAnimInterruptable[MAXPLAYERS + 1]; // 可被机瞄/侧瞄/奔跑打断(true) 或 绝对霸体(false)
+bool g_bCustomAnimInterruptable[MAXPLAYERS + 1]; // 可被机瞄/侧瞄/奔跑及攻击就绪后的检视打断(true) 或 绝对霸体(false)
 int g_iCustomAnimRestart[MAXPLAYERS + 1];       // 重播强制标记(2=播一帧引擎原生序列, 1=下帧切回动画序列, 0=无)
 
 Handle g_ForwardClientCustomAnimStart = INVALID_HANDLE;

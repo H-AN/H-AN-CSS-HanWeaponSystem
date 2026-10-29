@@ -3,7 +3,7 @@
 // 供外部插件播放任意 VM 动画序列(如枪托攻击), 由 OnPostThinkPost 每tick强制,
 // 优先级高于 机瞄/侧瞄/奔跑/检视/换弹接管。
 // - 触发时: 强制退出机瞄/侧瞄/奔跑/检视/空仓换弹接管
-// - 播放中: 机瞄/侧瞄/奔跑可打断(interruptable=true 时); 检视不打断
+// - 播放中: 机瞄/侧瞄/奔跑及攻击就绪后的检视可打断(interruptable=true 时)
 // - 结束: 只回 idle, 不恢复被中断状态
 // - 帧基准: 30fps(与检视/奔跑一致), 时长 = 帧数/30
 // - 纯 API, 系统不内置任何技能/伤害逻辑
@@ -14,7 +14,7 @@
 //    seq         动画序列号
 //    frames      动画时长(帧, 30fps 基准)
 //    repeat      已在播放中时: true=允许重播打断自己, false=拒绝(返回 false)
-//    interruptable 播放中是否可被 机瞄/侧瞄/奔跑 打断: true=可打断(默认), false=绝对霸体
+//    interruptable 播放中是否可被 机瞄/侧瞄/奔跑/检视 打断(检视须攻击就绪): true=可打断(默认), false=绝对霸体
 //    返回 true=已开始播放, false=参数非法/未在游戏/不可重播
 // ============================================================================
 bool CustomAnim_Set(int client, int seq, int frames, bool repeat, bool interruptable)

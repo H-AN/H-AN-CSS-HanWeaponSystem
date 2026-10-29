@@ -8,6 +8,8 @@
 
 **8.3：** 调整切枪动画刷新范围，独立处理自定义模型切入时的动画进度归零；重构开火动画修复的触发及清理逻辑，减少对拔枪、换弹和其他动画接管的误干预。
 
+**8.4：** 检视统一按玩家及武器攻击冷却判断；冷却结束且未换弹时，可打断允许中断的自定义动画，无需等待动画尾段播完。空弹匣及无弹药类型武器也按攻击时间戳判断，不检查弹药数量；攻击、换弹等仍可打断检视。
+
 新增独立插件：[HanVMCrossFix](https://github.com/H-AN/HanVMCrossFix)修复跨v0-v1模型切换所导致的动画缺失问题，建议一起安装使用体验更好
 
 使用[快速手雷](https://github.com/Ducheese/quickseries)插件的情况下 
@@ -150,6 +152,8 @@ bind mouse3 +attack3
 | `inspectflashlight` | 1=检视时屏蔽手电筒 |
 | `inspectsound` | 检视音效，逗号分隔随机播放 |
 | `*_silencer` | seq/time/sound 消音器变体 |
+
+F 键、`sm_inspect` 与 Bot 共用检视门槛：玩家 `m_flNextAttack`、武器 `m_flNextPrimaryAttack` 已到期且未换弹；刀、配置了右键连发或启用自动连发的武器还检查 `m_flNextSecondaryAttack`。满足条件后，检视通过现有结束逻辑打断自定义动画；`interruptable=false` 的动画仍禁止检视打断。
 
 ### HanWeaponRunData.cfg（奔跑）
 

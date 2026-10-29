@@ -15,6 +15,8 @@ when switching to custom models; refactored the trigger and cleanup logic for fi
 
 reload, and other animation sequences.
 
+**8.4:** Inspection now checks player and weapon attack cooldowns. Once ready and no longer reloading, inspection can interrupt interruptible custom animations without waiting for their remaining frames. Empty magazines and ammo-free weapons use the same timestamp checks without an ammunition requirement. Attacking, reloading, and other existing actions can still cancel inspection.
+
 Added a standalone plugin: [HanVMCrossFix](https://github.com/H-AN/HanVMCrossFix).
 
 This fixes animation issues caused by switching between v0 and v1 models; 
@@ -162,6 +164,8 @@ All configs live in `addons/sourcemod/configs/HanWeaponSystem/`. Every file has 
 | `inspectflashlight` | 1 = suppress flashlight while inspecting |
 | `inspectsound` | Inspect sound(s), comma separated random pick |
 | `*_silencer` | seq/time/sound silencer variants |
+
+F, `sm_inspect`, and Bots share the same inspection checks: the player's `m_flNextAttack` and the weapon's `m_flNextPrimaryAttack` must have elapsed, with no reload in progress. Knives, weapons configured for secondary rapid fire, and weapons with automatic fire enabled also check `m_flNextSecondaryAttack`. Inspection interrupts custom animations through the existing end logic; animations with `interruptable=false` remain protected.
 
 ### HanWeaponRunData.cfg (sprinting)
 

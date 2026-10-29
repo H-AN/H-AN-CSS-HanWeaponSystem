@@ -65,6 +65,42 @@ bool Inspect_IsRepeatable(int weapon)
     return Inspect_GetInt(weapon, "inspectrepeat", 0) > 0;
 }
 
+// 所有检视入口共用门槛: 以实际攻击冷却判断, 不依赖攻击动画长度或弹药数量。
+bool Inspect_CanStart(int client, int weapon)
+{
+    if (weapon <= MaxClients || !IsValidEntity(weapon))
+        return false;
+
+    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
+        return false;
+
+    if (g_bCustomAnim[client] && !g_bCustomAnimInterruptable[client])
+        return false;
+
+    if (!Inspect_IsWeaponInspectable(weapon))
+        return false;
+
+    bool repeat = Inspect_IsRepeatable(weapon);
+    if (!repeat && (g_bInspecting[client] || GetGameTime() < g_fInspectBlock[client]))
+        return false;
+
+    if (Weapon_IsReloading(weapon) || g_bEmptyReloading[client] ||
+        (HasEntProp(weapon, Prop_Send, "m_reloadState") && GetEntProp(weapon, Prop_Send, "m_reloadState") > 0))
+        return false;
+
+    float now = GetGameTime();
+    if (GetEntPropFloat(client, Prop_Send, "m_flNextAttack") > now ||
+        GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") > now)
+        return false;
+
+    // 刀及右键攻击武器还需等待副攻击冷却; 不把枪械的其他右键功能当成攻击。
+    if ((IsKnifeWeapon(weapon) || HasRightFireSpeed(weapon) || g_bWeaponAutoFire[client]) &&
+        GetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack") > now)
+        return false;
+
+    return true;
+}
+
 // ============================================================================
 // >> 命令触发(sm_inspect)
 // ============================================================================
@@ -76,33 +112,6 @@ public Action Cmd_Inspect(int client, int args)
     if (IsFakeClient(client))
         return Plugin_Handled;
 
-    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-    if (weapon <= 0)
-        return Plugin_Handled;
-
-    // 机瞄/侧瞄中/过渡中/奔跑中禁止检视
-    if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
-        return Plugin_Handled;
-
-    // 自定义动画中禁止检视(自定义动画优先级高于检视, 检视不打断自定义动画)
-    if (g_bCustomAnim[client])
-        return Plugin_Handled;
-
-    // 单次模式: 检视中忽略重复触发; 重复模式: 允许重播
-    if (!Inspect_IsRepeatable(weapon) && g_bInspecting[client])
-        return Plugin_Handled;
-
-    if (!Inspect_IsWeaponInspectable(weapon))
-        return Plugin_Handled;
-
-    // 换弹/换枪(deploy)期间不允许检视(无弹药特殊武器豁免, 与机瞄门槛一致)
-    if (!Zoom_IsNoAmmoWeapon(weapon) && GetEntPropFloat(client, Prop_Send, "m_flNextAttack") > GetGameTime())
-        return Plugin_Handled;
-
-    // 单次模式冷却防抖; 重复模式不限制以支持快速连按
-    if (!Inspect_IsRepeatable(weapon) && GetGameTime() < g_fInspectBlock[client])
-        return Plugin_Handled;
-
     Inspect_Start(client);
     return Plugin_Handled;
 }
@@ -110,7 +119,7 @@ public Action Cmd_Inspect(int client, int args)
 // ============================================================================
 // >> 触发检测(F键/impulse 100, 由 Combat 的 OnPlayerRunCmd 调用)
 // ============================================================================
-void Inspect_OnPlayerRunCmd(int client, int impulse, bool bReloading)
+void Inspect_OnPlayerRunCmd(int client, int impulse)
 {
     static bool s_bPrevImpulse100[MAXPLAYERS + 1];
 
@@ -121,36 +130,6 @@ void Inspect_OnPlayerRunCmd(int client, int impulse, bool bReloading)
             return;
 
         s_bPrevImpulse100[client] = true;
-
-        if (!IsPlayerAlive(client))
-            return;
-
-        int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-        if (weapon <= 0)
-            return;
-
-        // 机瞄/侧瞄中/过渡中/奔跑中禁止检视
-        if (g_bZooming[client] || g_iZoomInSwitch[client] != 0 || g_bSideAiming[client] || g_iSideAimInSwitch[client] != 0 || g_bRunning[client])
-            return;
-
-        // 自定义动画中禁止检视(自定义动画优先级高于检视, 检视不打断自定义动画)
-        if (g_bCustomAnim[client])
-            return;
-
-        // 单次模式: 检视中忽略重复触发; 重复模式: 允许反复按F重播
-        if (!Inspect_IsRepeatable(weapon) && g_bInspecting[client])
-            return;
-
-        // 换弹/换枪(deploy)期间不允许检视(无弹药特殊武器豁免, 与机瞄门槛一致)
-        if (!Zoom_IsNoAmmoWeapon(weapon) && (bReloading || GetEntPropFloat(client, Prop_Send, "m_flNextAttack") > GetGameTime()))
-            return;
-
-        if (!Inspect_IsWeaponInspectable(weapon))
-            return;
-
-        // 冷却防抖(防止按键抖动重复触发); 重复模式不限制冷却以支持快速连按
-        if (!Inspect_IsRepeatable(weapon) && GetGameTime() < g_fInspectBlock[client])
-            return;
 
         Inspect_Start(client);
     }
@@ -253,26 +232,37 @@ public Action Timer_PlayInspectSound(Handle timer, DataPack dp)
 // ============================================================================
 // >> 开始检视
 // ============================================================================
-void Inspect_Start(int client)
+bool Inspect_Start(int client)
 {
+    if (client < 1 || client > MaxClients || !IsClientInGame(client) || !IsPlayerAlive(client))
+        return false;
+
     int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-    if (weapon <= 0)
-        return;
-
-    // 记录进入检视前状态(重复模式重播时已在检视中, 不重复广播开始)
-    bool bWasInspecting = g_bInspecting[client];
-
-    // 重复模式重播时先停掉上一段检视音效, 避免音效重叠
-    Inspect_StopSound(client);
+    if (!Inspect_CanStart(client, weapon))
+        return false;
 
     int seq = Inspect_GetIntVariant(weapon, "inspectseq", -1);
     if (seq < 0)
-        return;
+        return false;
 
     // 时长单位为帧(30fps, 与原插件配置兼容), 换算成秒
     int frame = Inspect_GetIntVariant(weapon, "inspecttime", 0);
     if (frame <= 0)
-        return;
+        return false;
+
+    // 全部门槛通过后才打断旧动画, 复用机瞄/奔跑的自定义动画结束逻辑。
+    if (g_bCustomAnim[client])
+    {
+        CustomAnim_End(client);
+        // 结束回调可能切枪或开始新动作, 此时不覆盖回调选择的状态。
+        if (!IsPlayerAlive(client) || GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon") != weapon ||
+            g_bCustomAnim[client] || !Inspect_CanStart(client, weapon))
+            return false;
+    }
+
+    // 重复模式重播时不重复广播开始, 并先停止上一段检视音效。
+    bool bWasInspecting = g_bInspecting[client];
+    Inspect_StopSound(client);
 
     float dur = frame / 30.0;
 
@@ -355,6 +345,7 @@ void Inspect_Start(int client)
     {
         Inspect_FireForward(client, true);
     }
+    return true;
 }
 
 // ============================================================================
